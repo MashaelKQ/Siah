@@ -5,7 +5,6 @@ import '../theme/app_spacing.dart';
 import '../theme/app_text_styles.dart';
 import '../widgets/activity_card.dart';
 import '../widgets/mood_option.dart';
-import '../widgets/siah_logo.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -13,16 +12,12 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Top navigation bar
+      // ===========================================================
+      // App Bar
+      // Displays the standard screen title using Flutter's AppBar.
+      // ===========================================================
       appBar: AppBar(
-        elevation: 0,
-        title: const SizedBox.shrink(),
-        actions: [
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.notifications_outlined),
-          ),
-        ],
+        title: const Text('Siah'),
       ),
 
       body: SafeArea(
@@ -32,20 +27,8 @@ class HomeScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // ===========================================================
-              // Application Branding
-              // Displays the Siah logo at the top of the home page.
-              // ===========================================================
-              const Center(
-                child: SiahLogo(
-                  height: 70,
-                ),
-              ),
-
-              const SizedBox(height: AppSpacing.large),
-
-              // ===========================================================
               // Welcome Section
-              // Greets the user and introduces today's check-in.
+              // Greets the user and introduces the daily check-in.
               // ===========================================================
               const Text(
                 'Hello, Nourah!',
@@ -63,7 +46,7 @@ class HomeScreen extends StatelessWidget {
 
               // ===========================================================
               // Mood Check-in
-              // Allows the user to record their current emotional state.
+              // Allows the user to choose their current emotional state.
               // ===========================================================
               const Text(
                 'How are you feeling right now?',
@@ -111,8 +94,8 @@ class HomeScreen extends StatelessWidget {
               const SizedBox(height: AppSpacing.large),
 
               // ===========================================================
-              // Recommended Activities
-              // Personalized activities that support the user's wellbeing.
+              // Today's Activities
+              // Displays the main wellbeing activities available today.
               // ===========================================================
               const Text(
                 'Today’s Activities',

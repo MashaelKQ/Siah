@@ -1,38 +1,244 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
+import '../services/user_service.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_text_styles.dart';
+import '../utils/snackbar_helper.dart';
+import '../widgets/loading_indicator.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  bool _isDeletingAccount = false;
 
   // ===========================================================
   // Sign Out
-  // Ends the current Firebase session through AuthService.
-  // AuthGate automatically redirects the user to Login.
+  // Ends the current session through AuthService.
+  // AuthGate automatically displays the Login screen.
   // ===========================================================
   Future<void> _signOut() async {
     await AuthService.signOut();
   }
 
+  // ===========================================================
+  // Delete Confirmation
+  // Confirms that the user intends to permanently delete
+  // their account.
+  // ===========================================================
+  Future<void> _confirmDeleteAccount() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Delete Account?'),
+          content: const Text(
+            'This action is permanent and cannot be undone. '
+            'Your profile and account will be deleted.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext, false);
+              },
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(dialogContext, true);
+              },
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true && mounted) {
+      await _requestPassword();
+    }
+  }
+
+  // ===========================================================
+  // Password Confirmation
+  // Requests the user's password before account deletion.
+  // ===========================================================
+  // ===========================================================
+// Password Confirmation
+// Requests the user's password before account deletion.
+// ===========================================================
+  Future<void> _requestPassword() async {
+    final formKey = GlobalKey<FormState>();
+
+    var enteredPassword = '';
+    var obscurePassword = true;
+
+    final password = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Confirm Your Password'),
+              content: Form(
+                key: formKey,
+                child: TextFormField(
+                  obscureText: obscurePassword,
+                  autofocus: true,
+                  textInputAction: TextInputAction.done,
+                  decoration: InputDecoration(
+                    labelText: 'Password',
+                    prefixIcon: const Icon(Icons.lock_outline),
+                    suffixIcon: IconButton(
+                      tooltip:
+                          obscurePassword ? 'Show password' : 'Hide password',
+                      onPressed: () {
+                        setDialogState(() {
+                          obscurePassword = !obscurePassword;
+                        });
+                      },
+                      icon: Icon(
+                        obscurePassword
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                      ),
+                    ),
+                  ),
+                  onChanged: (value) {
+                    enteredPassword = value;
+                  },
+                  onFieldSubmitted: (_) {
+                    final isValid = formKey.currentState?.validate() ?? false;
+
+                    if (!isValid) return;
+
+                    Navigator.pop(
+                      dialogContext,
+                      enteredPassword,
+                    );
+                  },
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter your password.';
+                    }
+
+                    return null;
+                  },
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(dialogContext);
+                  },
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    final isValid = formKey.currentState?.validate() ?? false;
+
+                    if (!isValid) return;
+
+                    Navigator.pop(
+                      dialogContext,
+                      enteredPassword,
+                    );
+                  },
+                  child: const Text('Continue'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (password != null && mounted) {
+      await _deleteAccount(password);
+    }
+  }
+
+  // ===========================================================
+  // Account Deletion
+  // Reauthenticates the user, deletes their Firestore profile,
+  // and permanently deletes their Firebase Authentication account.
+  // ===========================================================
+  Future<void> _deleteAccount(String password) async {
+    if (_isDeletingAccount) return;
+
+    final user = AuthService.currentUser;
+
+    if (user == null) {
+      SnackbarHelper.show(
+        context,
+        'No signed-in account was found.',
+      );
+      return;
+    }
+
+    setState(() {
+      _isDeletingAccount = true;
+    });
+
+    try {
+      // Confirm the user's identity before deleting any data.
+      await AuthService.reauthenticate(
+        password: password,
+      );
+
+      // Delete the Firestore profile while the user is authenticated.
+      await UserService.deleteUser(user.uid);
+
+      // Permanently delete the Firebase Authentication account.
+      await AuthService.deleteAccount();
+
+      // AuthGate detects the deleted session and displays Login.
+    } on FirebaseAuthException catch (error) {
+      if (!mounted) return;
+
+      final message = switch (error.code) {
+        'wrong-password' ||
+        'invalid-credential' =>
+          'The password you entered is incorrect.',
+        'requires-recent-login' => 'Please sign out, sign in again, and retry.',
+        'too-many-requests' => 'Too many attempts. Please wait and try again.',
+        'network-request-failed' =>
+          'Check your internet connection and try again.',
+        _ => 'Unable to delete your account. Please try again.',
+      };
+
+      SnackbarHelper.show(context, message);
+    } catch (_) {
+      if (!mounted) return;
+
+      SnackbarHelper.show(
+        context,
+        'Unable to delete your account. Please try again.',
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isDeletingAccount = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    // ===========================================================
-    // Current User
-    // Retrieves the currently authenticated user through AuthService.
-    // ===========================================================
     final user = AuthService.currentUser;
 
     return Scaffold(
-      // ===========================================================
-      // App Bar
-      // Displays the standard title for the Profile screen.
-      // ===========================================================
       appBar: AppBar(
         title: const Text('Profile'),
       ),
-
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.regular),
@@ -118,6 +324,27 @@ class ProfileScreen extends StatelessWidget {
                 onTap: () {},
               ),
 
+              const Divider(),
+
+              // ===========================================================
+              // Delete Account
+              // Permanently removes the user's profile and account.
+              // ===========================================================
+              ListTile(
+                enabled: !_isDeletingAccount,
+                leading: const Icon(
+                  Icons.delete_outline,
+                  color: Colors.red,
+                ),
+                title: const Text(
+                  'Delete Account',
+                  style: TextStyle(
+                    color: Colors.red,
+                  ),
+                ),
+                onTap: _confirmDeleteAccount,
+              ),
+
               const Spacer(),
 
               // ===========================================================
@@ -127,9 +354,13 @@ class ProfileScreen extends StatelessWidget {
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  onPressed: _signOut,
-                  icon: const Icon(Icons.logout),
-                  label: const Text('Sign Out'),
+                  onPressed: _isDeletingAccount ? null : _signOut,
+                  icon: _isDeletingAccount
+                      ? const LoadingIndicator()
+                      : const Icon(Icons.logout),
+                  label: Text(
+                    _isDeletingAccount ? 'Deleting Account...' : 'Sign Out',
+                  ),
                 ),
               ),
             ],

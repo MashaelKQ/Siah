@@ -59,4 +59,40 @@ class AuthService {
   static Future<void> signOut() {
     return _auth.signOut();
   }
+
+  // ===========================================================
+// Delete Account
+// Permanently deletes the authenticated Firebase account.
+// ===========================================================
+  static Future<void> deleteAccount() async {
+    final user = _auth.currentUser;
+
+    if (user == null) {
+      throw StateError('No authenticated user.');
+    }
+
+    await user.delete();
+  }
+
+  // ===========================================================
+// Reauthenticate
+// Confirms the user's password before a sensitive action.
+// ===========================================================
+  static Future<void> reauthenticate({
+    required String password,
+  }) async {
+    final user = _auth.currentUser;
+    final email = user?.email;
+
+    if (user == null || email == null) {
+      throw StateError('No authenticated user was found.');
+    }
+
+    final credential = EmailAuthProvider.credential(
+      email: email,
+      password: password,
+    );
+
+    await user.reauthenticateWithCredential(credential);
+  }
 }

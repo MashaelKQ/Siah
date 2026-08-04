@@ -1,7 +1,9 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../models/app_user.dart';
 import '../services/auth_service.dart';
+import '../services/user_service.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_text_styles.dart';
 import '../utils/auth_error_messages.dart';
@@ -50,8 +52,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
   // ===========================================================
   // Account Creation
-  // Validates the form and creates an account through AuthService.
-  // AuthGate automatically opens the main application.
+  // Creates the Authentication account and Firestore profile.
   // ===========================================================
   Future<void> _createAccount() async {
     if (_isLoading) return;
@@ -73,11 +74,34 @@ class _SignupScreenState extends State<SignupScreen> {
     });
 
     try {
-      await AuthService.createAccount(
+      // Create the Firebase Authentication account.
+      final userCredential = await AuthService.createAccount(
         name: _nameController.text,
         email: _emailController.text,
         password: _passwordController.text,
       );
+
+      final firebaseUser = userCredential.user;
+
+      if (firebaseUser == null) {
+        throw StateError('Firebase did not return a user account.');
+      }
+
+      // Create the user's application profile in Cloud Firestore.
+      final appUser = AppUser(
+        id: firebaseUser.uid,
+        name: _nameController.text.trim(),
+        email: firebaseUser.email ?? _emailController.text.trim(),
+        createdAt: DateTime.now().toUtc(),
+      );
+
+      await UserService.createUser(appUser);
+
+      if (!mounted) return;
+
+      // Close the Sign Up screen.
+      // AuthGate now detects the signed-in user and displays Home.
+      Navigator.pop(context);
     } on FirebaseAuthException catch (error) {
       if (!mounted) return;
 
@@ -90,7 +114,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
       SnackbarHelper.show(
         context,
-        'Something went wrong. Please try again.',
+        'The account could not be completed. Please try again.',
       );
     } finally {
       if (mounted) {
@@ -291,7 +315,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
                 // ===========================================================
                 // Create Account
-                // Submits registration details through AuthService.
+                // Creates the Authentication account and Firestore profile.
                 // ===========================================================
                 SizedBox(
                   width: double.infinity,
@@ -307,7 +331,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
                 // ===========================================================
                 // Existing Account
-                // Returns existing users to the sign-in screen.
+                // Returns existing users to the Sign In screen.
                 // ===========================================================
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,

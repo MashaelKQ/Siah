@@ -6,8 +6,8 @@ import '../theme/app_colors.dart';
 import '../widgets/siah_logo.dart';
 import 'auth_gate.dart';
 
-/// Displays the Siah logo briefly before checking
-/// whether the user already has an active Firebase session.
+/// Displays the Siah logo briefly before checking whether
+/// the user already has an active Firebase session.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -16,24 +16,41 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
+  Timer? _navigationTimer;
+
   @override
   void initState() {
     super.initState();
 
     // ===========================================================
     // Startup Flow
-    // Displays the splash screen before checking authentication.
+    // Displays the splash screen briefly before opening AuthGate.
     // ===========================================================
-    Timer(const Duration(seconds: 2), () {
-      if (!mounted) return;
+    _navigationTimer = Timer(
+      const Duration(seconds: 2),
+      _openAuthGate,
+    );
+  }
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const AuthGate(),
-        ),
-      );
-    });
+  // ===========================================================
+  // Authentication Routing
+  // Replaces the splash screen with the authentication gate.
+  // ===========================================================
+  void _openAuthGate() {
+    if (!mounted) return;
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const AuthGate(),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _navigationTimer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -44,7 +61,7 @@ class _SplashScreenState extends State<SplashScreen> {
         child: Center(
           // ===========================================================
           // Application Branding
-          // Displays the Siah logo while the app starts.
+          // Displays the Siah logo while the application starts.
           // ===========================================================
           child: SiahLogo(
             height: 180,

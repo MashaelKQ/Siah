@@ -1,39 +1,28 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../services/auth_service.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_text_styles.dart';
-import 'login_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
   // ===========================================================
   // Sign Out
-  // Ends the current Firebase session and returns the user
-  // to the Login screen.
+  // Ends the current Firebase session through AuthService.
+  // AuthGate automatically redirects the user to Login.
   // ===========================================================
-  Future<void> _signOut(BuildContext context) async {
-    await FirebaseAuth.instance.signOut();
-
-    if (!context.mounted) return;
-
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const LoginScreen(),
-      ),
-      (route) => false,
-    );
+  Future<void> _signOut() async {
+    await AuthService.signOut();
   }
 
   @override
   Widget build(BuildContext context) {
     // ===========================================================
     // Current User
-    // Retrieves the currently authenticated Firebase user.
+    // Retrieves the currently authenticated user through AuthService.
     // ===========================================================
-    final user = FirebaseAuth.instance.currentUser;
+    final user = AuthService.currentUser;
 
     return Scaffold(
       // ===========================================================
@@ -133,12 +122,12 @@ class ProfileScreen extends StatelessWidget {
 
               // ===========================================================
               // Sign Out
-              // Signs the current user out of Firebase Authentication.
+              // Signs the current user out through AuthService.
               // ===========================================================
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  onPressed: () => _signOut(context),
+                  onPressed: _signOut,
                   icon: const Icon(Icons.logout),
                   label: const Text('Sign Out'),
                 ),

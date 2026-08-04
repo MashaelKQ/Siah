@@ -1,10 +1,14 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../services/auth_service.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_text_styles.dart';
+import '../utils/auth_error_messages.dart';
+import '../utils/form_validators.dart';
+import '../utils/snackbar_helper.dart';
+import '../widgets/loading_indicator.dart';
 import '../widgets/siah_logo.dart';
-import 'main_navigation_screen.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -16,7 +20,7 @@ class SignupScreen extends StatefulWidget {
 class _SignupScreenState extends State<SignupScreen> {
   // ===========================================================
   // Form and Input Controllers
-  // Manage validation and the values entered by the user.
+  // Manage validation and values entered by the user.
   // ===========================================================
   final _formKey = GlobalKey<FormState>();
 
@@ -45,22 +49,9 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   // ===========================================================
-  // Feedback Message
-  // Displays a standard message at the bottom of the screen.
-  // ===========================================================
-  void _showMessage(String message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-        ),
-      );
-  }
-
-  // ===========================================================
   // Account Creation
-  // Validates the form and creates a Firebase user account.
+  // Validates the form and creates an account through AuthService.
+  // AuthGate automatically opens the main application.
   // ===========================================================
   Future<void> _createAccount() async {
     if (_isLoading) return;
@@ -70,7 +61,10 @@ class _SignupScreenState extends State<SignupScreen> {
     if (!isFormValid) return;
 
     if (!_acceptedTerms) {
-      _showMessage('Please accept the Terms and Privacy Policy.');
+      SnackbarHelper.show(
+        context,
+        'Please accept the Terms and Privacy Policy.',
+      );
       return;
     }
 
@@ -79,46 +73,25 @@ class _SignupScreenState extends State<SignupScreen> {
     });
 
     try {
-      final userCredential =
-          await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: _emailController.text.trim(),
+      await AuthService.createAccount(
+        name: _nameController.text,
+        email: _emailController.text,
         password: _passwordController.text,
-      );
-
-      // Store the user's name in their Firebase Authentication profile.
-      await userCredential.user?.updateDisplayName(
-        _nameController.text.trim(),
-      );
-
-      if (!mounted) return;
-
-      // Remove the authentication screens and open the main application.
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const MainNavigationScreen(),
-        ),
-        (route) => false,
       );
     } on FirebaseAuthException catch (error) {
       if (!mounted) return;
 
-      final message = switch (error.code) {
-        'weak-password' => 'The password is too weak.',
-        'email-already-in-use' => 'An account already exists for this email.',
-        'invalid-email' => 'Please enter a valid email address.',
-        'operation-not-allowed' =>
-          'Email and password registration is not enabled.',
-        'network-request-failed' =>
-          'Check your internet connection and try again.',
-        _ => 'Unable to create your account. Please try again.',
-      };
-
-      _showMessage(message);
+      SnackbarHelper.show(
+        context,
+        AuthErrorMessages.signUp(error.code),
+      );
     } catch (_) {
       if (!mounted) return;
 
-      _showMessage('Something went wrong. Please try again.');
+      SnackbarHelper.show(
+        context,
+        'Something went wrong. Please try again.',
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -185,15 +158,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     hintText: 'Enter your full name',
                     prefixIcon: Icon(Icons.person_outline),
                   ),
-                  validator: (value) {
-                    final name = value?.trim() ?? '';
-
-                    if (name.isEmpty) {
-                      return 'Please enter your full name.';
-                    }
-
-                    return null;
-                  },
+                  validator: FormValidators.requiredName,
                 ),
 
                 const SizedBox(height: AppSpacing.medium),
@@ -213,19 +178,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     hintText: 'Enter your email address',
                     prefixIcon: Icon(Icons.email_outlined),
                   ),
-                  validator: (value) {
-                    final email = value?.trim() ?? '';
-
-                    if (email.isEmpty) {
-                      return 'Please enter your email address.';
-                    }
-
-                    if (!email.contains('@') || !email.contains('.')) {
-                      return 'Please enter a valid email address.';
-                    }
-
-                    return null;
-                  },
+                  validator: FormValidators.email,
                 ),
 
                 const SizedBox(height: AppSpacing.medium),
@@ -261,17 +214,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       ),
                     ),
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please create a password.';
-                    }
-
-                    if (value.length < 6) {
-                      return 'Password must contain at least 6 characters.';
-                    }
-
-                    return null;
-                  },
+                  validator: FormValidators.password,
                 ),
 
                 const SizedBox(height: AppSpacing.medium),
@@ -348,20 +291,14 @@ class _SignupScreenState extends State<SignupScreen> {
 
                 // ===========================================================
                 // Create Account
-                // Submits the registration details to Firebase.
+                // Submits registration details through AuthService.
                 // ===========================================================
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton(
                     onPressed: _isLoading ? null : _createAccount,
                     child: _isLoading
-                        ? const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                            ),
-                          )
+                        ? const LoadingIndicator()
                         : const Text('Create Account'),
                   ),
                 ),

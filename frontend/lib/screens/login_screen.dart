@@ -1,10 +1,14 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../services/auth_service.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_text_styles.dart';
+import '../utils/auth_error_messages.dart';
+import '../utils/form_validators.dart';
+import '../utils/snackbar_helper.dart';
+import '../widgets/loading_indicator.dart';
 import '../widgets/siah_logo.dart';
-import 'main_navigation_screen.dart';
 import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -17,7 +21,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   // ===========================================================
   // Form and Input Controllers
-  // Manage validation and the values entered by the user.
+  // Manage validation and values entered by the user.
   // ===========================================================
   final _formKey = GlobalKey<FormState>();
 
@@ -40,22 +44,9 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   // ===========================================================
-  // Feedback Message
-  // Displays a standard message at the bottom of the screen.
-  // ===========================================================
-  void _showMessage(String message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-        ),
-      );
-  }
-
-  // ===========================================================
   // Sign In
-  // Validates the form and signs the user in through Firebase.
+  // Validates the form and signs the user in through AuthService.
+  // AuthGate automatically opens the main application.
   // ===========================================================
   Future<void> _login() async {
     if (_isLoading) return;
@@ -69,41 +60,24 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: _emailController.text.trim(),
+      await AuthService.signIn(
+        email: _emailController.text,
         password: _passwordController.text,
-      );
-
-      if (!mounted) return;
-
-      // Remove authentication screens and open the main application.
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const MainNavigationScreen(),
-        ),
-        (route) => false,
       );
     } on FirebaseAuthException catch (error) {
       if (!mounted) return;
 
-      final message = switch (error.code) {
-        'invalid-email' => 'Please enter a valid email address.',
-        'user-disabled' => 'This account has been disabled.',
-        'user-not-found' => 'No account exists for this email.',
-        'wrong-password' => 'The password is incorrect.',
-        'invalid-credential' => 'The email or password is incorrect.',
-        'network-request-failed' =>
-          'Check your internet connection and try again.',
-        'too-many-requests' => 'Too many attempts. Please wait and try again.',
-        _ => 'Unable to sign in. Please try again.',
-      };
-
-      _showMessage(message);
+      SnackbarHelper.show(
+        context,
+        AuthErrorMessages.signIn(error.code),
+      );
     } catch (_) {
       if (!mounted) return;
 
-      _showMessage('Something went wrong. Please try again.');
+      SnackbarHelper.show(
+        context,
+        'Something went wrong. Please try again.',
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -170,19 +144,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     hintText: 'Enter your email address',
                     prefixIcon: Icon(Icons.email_outlined),
                   ),
-                  validator: (value) {
-                    final email = value?.trim() ?? '';
-
-                    if (email.isEmpty) {
-                      return 'Please enter your email address.';
-                    }
-
-                    if (!email.contains('@') || !email.contains('.')) {
-                      return 'Please enter a valid email address.';
-                    }
-
-                    return null;
-                  },
+                  validator: FormValidators.email,
                 ),
 
                 const SizedBox(height: AppSpacing.medium),
@@ -219,17 +181,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter your password.';
-                    }
-
-                    if (value.length < 6) {
-                      return 'Password must contain at least 6 characters.';
-                    }
-
-                    return null;
-                  },
+                  validator: FormValidators.password,
                 ),
 
                 // ===========================================================
@@ -252,20 +204,14 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 // ===========================================================
                 // Sign In Action
-                // Submits the user's credentials to Firebase.
+                // Submits the user's credentials through AuthService.
                 // ===========================================================
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton(
                     onPressed: _isLoading ? null : _login,
                     child: _isLoading
-                        ? const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                            ),
-                          )
+                        ? const LoadingIndicator()
                         : const Text('Sign In'),
                   ),
                 ),

@@ -4,13 +4,10 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 import '../widgets/siah_logo.dart';
-import 'main_navigation_screen.dart';
+import 'auth_gate.dart';
 
-/// SplashScreen
-///
-/// Displays the application's branding while the app initializes.
-/// After a short delay, the user is automatically redirected to the
-/// main navigation screen.
+/// Displays the Siah logo briefly before checking
+/// whether the user already has an active Firebase session.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -24,8 +21,8 @@ class _SplashScreenState extends State<SplashScreen> {
     super.initState();
 
     // ===========================================================
-    // App Initialization
-    // Displays the splash screen briefly before entering the app.
+    // Startup Flow
+    // Displays the splash screen before checking authentication.
     // ===========================================================
     Timer(const Duration(seconds: 2), () {
       if (!mounted) return;
@@ -33,7 +30,7 @@ class _SplashScreenState extends State<SplashScreen> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => const MainNavigationScreen(),
+          builder: (context) => const AuthGate(),
         ),
       );
     });
@@ -41,14 +38,14 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      // ===========================================================
-      // Splash Screen Layout
-      // Displays the application's logo while loading.
-      // ===========================================================
+    return const Scaffold(
       backgroundColor: AppColors.background,
-      body: const SafeArea(
+      body: SafeArea(
         child: Center(
+          // ===========================================================
+          // Application Branding
+          // Displays the Siah logo while the app starts.
+          // ===========================================================
           child: SiahLogo(
             height: 180,
           ),

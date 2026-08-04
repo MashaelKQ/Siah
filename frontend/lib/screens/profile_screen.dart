@@ -1,13 +1,40 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../theme/app_spacing.dart';
 import '../theme/app_text_styles.dart';
+import 'login_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
+  // ===========================================================
+  // Sign Out
+  // Ends the current Firebase session and returns the user
+  // to the Login screen.
+  // ===========================================================
+  Future<void> _signOut(BuildContext context) async {
+    await FirebaseAuth.instance.signOut();
+
+    if (!context.mounted) return;
+
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const LoginScreen(),
+      ),
+      (route) => false,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    // ===========================================================
+    // Current User
+    // Retrieves the currently authenticated Firebase user.
+    // ===========================================================
+    final user = FirebaseAuth.instance.currentUser;
+
     return Scaffold(
       // ===========================================================
       // App Bar
@@ -25,7 +52,7 @@ class ProfileScreen extends StatelessWidget {
             children: [
               // ===========================================================
               // User Information
-              // Displays the user's basic profile details.
+              // Displays the authenticated user's profile details.
               // ===========================================================
               const Center(
                 child: CircleAvatar(
@@ -39,18 +66,18 @@ class ProfileScreen extends StatelessWidget {
 
               const SizedBox(height: AppSpacing.medium),
 
-              const Center(
+              Center(
                 child: Text(
-                  'Nourah',
+                  user?.displayName ?? 'User',
                   style: AppTextStyles.heading1,
                 ),
               ),
 
               const SizedBox(height: AppSpacing.xSmall),
 
-              const Center(
+              Center(
                 child: Text(
-                  'nourah@example.com',
+                  user?.email ?? '',
                   style: AppTextStyles.caption,
                 ),
               ),
@@ -58,8 +85,8 @@ class ProfileScreen extends StatelessWidget {
               const SizedBox(height: AppSpacing.large),
 
               // ===========================================================
-              // Profile Options
-              // Provides access to account and application settings.
+              // Account Options
+              // Provides access to profile and application settings.
               // ===========================================================
               const Text(
                 'Account',
@@ -106,12 +133,12 @@ class ProfileScreen extends StatelessWidget {
 
               // ===========================================================
               // Sign Out
-              // Allows the user to leave their account.
+              // Signs the current user out of Firebase Authentication.
               // ===========================================================
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  onPressed: () {},
+                  onPressed: () => _signOut(context),
                   icon: const Icon(Icons.logout),
                   label: const Text('Sign Out'),
                 ),

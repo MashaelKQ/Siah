@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "525749845350",
+    "project_id": "siah-c8961",
+    "storage_bucket": "siah-c8961.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:525749845350:android:71b87ee1756d5d622e9ca7",
+        "android_client_info": {
+          "package_name": "com.siah.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDpBB194rwDzLVXOheI88PRU0vH3c8Yvps"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -54,7 +54,7 @@ class WellnessScreen extends StatelessWidget {
 
               const SizedBox(height: AppSpacing.medium),
 
-              Card(
+              const Card(
                 child: Padding(
                   padding: const EdgeInsets.all(AppSpacing.regular),
                   child: Column(

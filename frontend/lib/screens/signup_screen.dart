@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-
+import '../data/consent_content.dart';
+import 'consent_screen.dart';
 import '../models/app_user.dart';
 import '../services/auth_service.dart';
 import '../services/user_service.dart';
@@ -49,7 +50,25 @@ class _SignupScreenState extends State<SignupScreen> {
 
     super.dispose();
   }
+ // ===========================================================
+  // Open Consent
+  // Shows the privacy rules and records the user's decision.
+  // The box cannot be ticked without reading them.
+  // ===========================================================
+  Future<void> _openConsent() async {
+    final accepted = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const ConsentScreen(),
+      ),
+    );
 
+    if (!mounted) return;
+
+    setState(() {
+      _acceptedTerms = accepted ?? false;
+    });
+  }
   // ===========================================================
   // Account Creation
   // Creates the Authentication account and Firestore profile.
@@ -89,11 +108,13 @@ class _SignupScreenState extends State<SignupScreen> {
 
       // Create the user's application profile in Cloud Firestore.
       final appUser = AppUser(
-        id: firebaseUser.uid,
-        name: _nameController.text.trim(),
-        email: firebaseUser.email ?? _emailController.text.trim(),
-        createdAt: DateTime.now().toUtc(),
-      );
+  id: firebaseUser.uid,
+  name: _nameController.text.trim(),
+  email: firebaseUser.email ?? _emailController.text.trim(),
+  createdAt: DateTime.now().toUtc(),
+  consentVersion: consentVersion,
+  consentAcceptedAt: DateTime.now().toUtc(),
+);
 
       await UserService.createUser(appUser);
 
@@ -297,19 +318,33 @@ class _SignupScreenState extends State<SignupScreen> {
                 // Records acceptance of the required policies.
                 // ===========================================================
                 CheckboxListTile(
-                  value: _acceptedTerms,
-                  enabled: !_isLoading,
-                  contentPadding: EdgeInsets.zero,
-                  controlAffinity: ListTileControlAffinity.leading,
-                  title: const Text(
-                    'I agree to the Terms and Privacy Policy.',
-                  ),
-                  onChanged: (value) {
-                    setState(() {
-                      _acceptedTerms = value ?? false;
-                    });
-                  },
-                ),
+  value: _acceptedTerms,
+  enabled: !_isLoading,
+  contentPadding: EdgeInsets.zero,
+  controlAffinity: ListTileControlAffinity.leading,
+  title: const Text(
+    'I have read and agree to the Privacy and Consent terms.',
+  ),
+  subtitle: TextButton(
+    style: TextButton.styleFrom(
+      padding: EdgeInsets.zero,
+      alignment: Alignment.centerLeft,
+    ),
+    onPressed: _isLoading ? null : _openConsent,
+    child: const Text('Read the terms'),
+  ),
+  onChanged: (value) {
+    // Ticking the box opens the terms instead of skipping them.
+    if (value == true && !_acceptedTerms) {
+      _openConsent();
+      return;
+    }
+
+    setState(() {
+      _acceptedTerms = value ?? false;
+    });
+  },
+),
 
                 const SizedBox(height: AppSpacing.medium),
 

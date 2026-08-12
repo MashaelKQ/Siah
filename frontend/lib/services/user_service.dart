@@ -49,4 +49,20 @@ class UserService {
   static Future<void> deleteUser(String userId) async {
     await _firestore.collection(_collection).doc(userId).delete();
   }
+
+  // ===========================================================
+  // Update Profile
+  // Saves only the name and avatar, so the rest of the profile
+  // cannot be overwritten by a stale copy of the document.
+  // ===========================================================
+  static Future<void> updateProfile({
+    required String userId,
+    required String name,
+    required String avatarId,
+  }) async {
+    await _firestore.collection(_collection).doc(userId).update({
+      'name': name.trim(),
+      'avatarId': avatarId,
+    });
+  }
 }

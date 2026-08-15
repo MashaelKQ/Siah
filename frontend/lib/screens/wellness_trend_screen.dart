@@ -30,7 +30,7 @@ class _WellnessTrendScreenState extends State<WellnessTrendScreen> {
   // ===========================================================
   // Load Trend
   // Retrieves all saved wellness assessments once.
-  // Filtering is then handled locally for better performance.
+  // Filtering is handled locally for low complexity and speed.
   // ===========================================================
   void _loadTrend() {
     final user = AuthService.currentUser;
@@ -45,7 +45,7 @@ class _WellnessTrendScreenState extends State<WellnessTrendScreen> {
 
   // ===========================================================
   // Filter Assessments
-  // Returns either all assessments or only the selected year.
+  // Returns either all assessments or the selected year only.
   // ===========================================================
   List<WellnessAssessment> _filteredAssessments(
     List<WellnessAssessment> assessments,
@@ -63,13 +63,17 @@ class _WellnessTrendScreenState extends State<WellnessTrendScreen> {
 
   // ===========================================================
   // Available Years
-  // Extracts unique years from the user's assessment history.
+  // Extracts unique assessment years.
   // ===========================================================
   List<int> _availableYears(
     List<WellnessAssessment> assessments,
   ) {
-    final years =
-        assessments.map((assessment) => assessment.year).toSet().toList();
+    final years = assessments
+        .map(
+          (assessment) => assessment.year,
+        )
+        .toSet()
+        .toList();
 
     years.sort((a, b) => b.compareTo(a));
 
@@ -131,7 +135,7 @@ class _WellnessTrendScreenState extends State<WellnessTrendScreen> {
 
   // ===========================================================
   // Chart Spots
-  // Converts wellness assessments into chart coordinates.
+  // Converts assessment scores into line chart points.
   // ===========================================================
   List<FlSpot> _buildChartSpots(
     List<WellnessAssessment> assessments,
@@ -148,9 +152,13 @@ class _WellnessTrendScreenState extends State<WellnessTrendScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // ===========================================================
+      // App Bar
+      // ===========================================================
       appBar: AppBar(
         title: const Text('Wellness Trends'),
       ),
+
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.regular),
@@ -231,19 +239,22 @@ class _WellnessTrendScreenState extends State<WellnessTrendScreen> {
 
                   // =========================================================
                   // Trend View Selector
-                  // Switches between yearly and all-time history.
                   // =========================================================
                   SegmentedButton<bool>(
                     segments: const [
                       ButtonSegment<bool>(
                         value: false,
                         label: Text('Yearly'),
-                        icon: Icon(Icons.calendar_today_outlined),
+                        icon: Icon(
+                          Icons.calendar_today_outlined,
+                        ),
                       ),
                       ButtonSegment<bool>(
                         value: true,
                         label: Text('All Time'),
-                        icon: Icon(Icons.timeline),
+                        icon: Icon(
+                          Icons.timeline,
+                        ),
                       ),
                     ],
                     selected: {_showAllTime},
@@ -256,15 +267,18 @@ class _WellnessTrendScreenState extends State<WellnessTrendScreen> {
 
                   // =========================================================
                   // Year Selector
-                  // Only shown while viewing yearly history.
                   // =========================================================
                   if (!_showAllTime) ...[
-                    const SizedBox(height: AppSpacing.medium),
+                    const SizedBox(
+                      height: AppSpacing.medium,
+                    ),
                     DropdownButtonFormField<int>(
                       initialValue: _selectedYear,
                       decoration: const InputDecoration(
                         labelText: 'Year',
-                        prefixIcon: Icon(Icons.calendar_month_outlined),
+                        prefixIcon: Icon(
+                          Icons.calendar_month_outlined,
+                        ),
                       ),
                       items: availableYears
                           .map(
@@ -287,7 +301,7 @@ class _WellnessTrendScreenState extends State<WellnessTrendScreen> {
                   const SizedBox(height: AppSpacing.large),
 
                   // =========================================================
-                  // Trend Chart
+                  // No Data for Selected Period
                   // =========================================================
                   if (filteredAssessments.isEmpty)
                     const Expanded(
@@ -299,10 +313,16 @@ class _WellnessTrendScreenState extends State<WellnessTrendScreen> {
                       ),
                     )
                   else ...[
+                    // =======================================================
+                    // Wellness Trend Chart
+                    // GHQ score range is fixed from 0 to 12.
+                    // =======================================================
                     SizedBox(
                       height: 220,
                       child: LineChart(
                         LineChartData(
+                          minY: 0,
+                          maxY: 12,
                           gridData: const FlGridData(
                             show: true,
                           ),
@@ -324,6 +344,7 @@ class _WellnessTrendScreenState extends State<WellnessTrendScreen> {
                               sideTitles: SideTitles(
                                 showTitles: true,
                                 reservedSize: 32,
+                                interval: 2,
                               ),
                             ),
                             bottomTitles: AxisTitles(
@@ -331,7 +352,10 @@ class _WellnessTrendScreenState extends State<WellnessTrendScreen> {
                                 showTitles: true,
                                 reservedSize: 32,
                                 interval: 1,
-                                getTitlesWidget: (value, meta) {
+                                getTitlesWidget: (
+                                  value,
+                                  meta,
+                                ) {
                                   final index = value.toInt();
 
                                   if (index < 0 ||
@@ -385,17 +409,27 @@ class _WellnessTrendScreenState extends State<WellnessTrendScreen> {
                       style: AppTextStyles.heading2,
                     ),
 
-                    const SizedBox(height: AppSpacing.medium),
+                    const SizedBox(
+                      height: AppSpacing.medium,
+                    ),
 
                     Expanded(
                       child: ListView.separated(
                         itemCount: filteredAssessments.length,
-                        separatorBuilder: (context, index) {
+                        separatorBuilder: (
+                          context,
+                          index,
+                        ) {
                           return const Divider();
                         },
-                        itemBuilder: (context, index) {
-                          final assessment =
-                              filteredAssessments.reversed.toList()[index];
+                        itemBuilder: (
+                          context,
+                          index,
+                        ) {
+                          final reversedAssessments =
+                              filteredAssessments.reversed.toList();
+
+                          final assessment = reversedAssessments[index];
 
                           return ListTile(
                             contentPadding: EdgeInsets.zero,
@@ -411,7 +445,7 @@ class _WellnessTrendScreenState extends State<WellnessTrendScreen> {
                               'Monthly wellness assessment',
                             ),
                             trailing: Text(
-                              '${assessment.score} / 36',
+                              '${assessment.score} / 12',
                               style: AppTextStyles.heading2,
                             ),
                           );

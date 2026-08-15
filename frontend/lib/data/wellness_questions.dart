@@ -1,121 +1,132 @@
 import '../models/wellness_question.dart';
 
 // ===========================================================
-// Monthly Wellness Questionnaire
-// Stores the questions and response options used by the survey.
-//
-// IMPORTANT:
-// These are temporary placeholders.
-// Replace them only with the approved/licensed GHQ-12 wording
-// before production use.
+// GHQ-12 Wellness Questionnaire
+// Uses binary GHQ scoring: 0, 0, 1, 1.
+// Maximum total score: 12.
 // ===========================================================
 const List<WellnessQuestion> wellnessQuestions = [
   WellnessQuestion(
-    text: 'Question 1',
+    text: 'Been able to concentrate on what you’re doing?',
     options: [
-      'Option 1',
-      'Option 2',
-      'Option 3',
-      'Option 4',
+      'Better than usual',
+      'Same as usual',
+      'Less than usual',
+      'Much less than usual',
     ],
+    scores: [0, 0, 1, 1],
   ),
   WellnessQuestion(
-    text: 'Question 2',
+    text: 'Lost much sleep over worry?',
     options: [
-      'Option 1',
-      'Option 2',
-      'Option 3',
-      'Option 4',
+      'Not at all',
+      'No more than usual',
+      'Rather more than usual',
+      'Much more than usual',
     ],
+    scores: [0, 0, 1, 1],
   ),
   WellnessQuestion(
-    text: 'Question 3',
+    text:
+        'Felt you were playing a useful part in things, such as daily activities, family and community?',
     options: [
-      'Option 1',
-      'Option 2',
-      'Option 3',
-      'Option 4',
+      'More so than usual',
+      'Same as usual',
+      'Less useful than usual',
+      'Much less useful',
     ],
+    scores: [0, 0, 1, 1],
   ),
   WellnessQuestion(
-    text: 'Question 4',
+    text: 'Felt capable of making decisions about things?',
     options: [
-      'Option 1',
-      'Option 2',
-      'Option 3',
-      'Option 4',
+      'More so than usual',
+      'Same as usual',
+      'Less so than usual',
+      'Much less capable',
     ],
+    scores: [0, 0, 1, 1],
   ),
   WellnessQuestion(
-    text: 'Question 5',
+    text: 'Felt constantly under strain (pressure/stress)?',
     options: [
-      'Option 1',
-      'Option 2',
-      'Option 3',
-      'Option 4',
+      'Not at all',
+      'No more than usual',
+      'Rather more than usual',
+      'Much more than usual',
     ],
+    scores: [0, 0, 1, 1],
   ),
   WellnessQuestion(
-    text: 'Question 6',
+    text: 'Felt you couldn’t overcome your difficulties?',
     options: [
-      'Option 1',
-      'Option 2',
-      'Option 3',
-      'Option 4',
+      'Not at all',
+      'No more than usual',
+      'Rather more than usual',
+      'Much more than usual',
     ],
+    scores: [0, 0, 1, 1],
   ),
   WellnessQuestion(
-    text: 'Question 7',
+    text: 'Been able to enjoy your normal day-to-day activities?',
     options: [
-      'Option 1',
-      'Option 2',
-      'Option 3',
-      'Option 4',
+      'More so than usual',
+      'Same as usual',
+      'Less so than usual',
+      'Much less than usual',
     ],
+    scores: [0, 0, 1, 1],
   ),
   WellnessQuestion(
-    text: 'Question 8',
+    text: 'Been able to face up to your problems?',
     options: [
-      'Option 1',
-      'Option 2',
-      'Option 3',
-      'Option 4',
+      'More so than usual',
+      'Same as usual',
+      'Less so than usual',
+      'Much less able',
     ],
+    scores: [0, 0, 1, 1],
   ),
   WellnessQuestion(
-    text: 'Question 9',
+    text: 'Been feeling unhappy and depressed?',
     options: [
-      'Option 1',
-      'Option 2',
-      'Option 3',
-      'Option 4',
+      'Not at all',
+      'No more than usual',
+      'Rather more than usual',
+      'Much more than usual',
     ],
+    scores: [0, 0, 1, 1],
   ),
   WellnessQuestion(
-    text: 'Question 10',
+    text: 'Been losing confidence in yourself?',
     options: [
-      'Option 1',
-      'Option 2',
-      'Option 3',
-      'Option 4',
+      'Not at all',
+      'No more than usual',
+      'Rather more than usual',
+      'Much more than usual',
     ],
+    scores: [0, 0, 1, 1],
   ),
   WellnessQuestion(
-    text: 'Question 11',
+    text:
+        'Been thinking of yourself as a worthless person (not having value, unimportant)?',
     options: [
-      'Option 1',
-      'Option 2',
-      'Option 3',
-      'Option 4',
+      'Not at all',
+      'No more than usual',
+      'Rather more than usual',
+      'Much more than usual',
     ],
+    scores: [0, 0, 1, 1],
   ),
   WellnessQuestion(
-    text: 'Question 12',
+    text:
+        'Been feeling reasonably happy, all things considered? (within past two weeks)',
     options: [
-      'Option 1',
-      'Option 2',
-      'Option 3',
-      'Option 4',
+      'More so than usual',
+      'Same as usual',
+      'Less so than usual',
+      'Much less than usual',
     ],
+    scores: [0, 0, 1, 1],
   ),
 ];

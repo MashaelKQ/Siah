@@ -19,7 +19,10 @@ class WellnessSurveyScreen extends StatefulWidget {
 class _WellnessSurveyScreenState extends State<WellnessSurveyScreen> {
   // ===========================================================
   // Survey State
-  // Stores one selected response for each survey question.
+  // Stores one selected response for each GHQ-12 question.
+  //
+  // Each stored value represents the selected option index:
+  // 0, 1, 2, or 3.
   // ===========================================================
   final List<int?> _answers = List<int?>.filled(wellnessQuestions.length, null);
 
@@ -28,7 +31,7 @@ class _WellnessSurveyScreenState extends State<WellnessSurveyScreen> {
 
   // ===========================================================
   // Select Answer
-  // Stores the response selected for the current question.
+  // Stores the selected option for the current question.
   // ===========================================================
   void _selectAnswer(int value) {
     setState(() {
@@ -38,7 +41,7 @@ class _WellnessSurveyScreenState extends State<WellnessSurveyScreen> {
 
   // ===========================================================
   // Previous Question
-  // Moves the user back to the previous survey question.
+  // Moves the user back to the previous question.
   // ===========================================================
   void _previousQuestion() {
     if (_currentQuestionIndex == 0) return;
@@ -50,7 +53,7 @@ class _WellnessSurveyScreenState extends State<WellnessSurveyScreen> {
 
   // ===========================================================
   // Next Question
-  // Validates the current answer and moves to the next question.
+  // Ensures the current question is answered before continuing.
   // The final question submits the assessment.
   // ===========================================================
   void _nextQuestion() {
@@ -74,19 +77,34 @@ class _WellnessSurveyScreenState extends State<WellnessSurveyScreen> {
 
   // ===========================================================
   // Calculate Score
-  // Uses Likert scoring: 0, 1, 2, 3.
-  // Total score range: 0 to 36.
+  // Uses GHQ binary scoring:
+  //
+  // Option 1 = 0
+  // Option 2 = 0
+  // Option 3 = 1
+  // Option 4 = 1
+  //
+  // Total score range: 0 to 12.
+  // Higher scores represent greater psychological distress.
   // ===========================================================
   int _calculateScore() {
-    return _answers.whereType<int>().fold(
-          0,
-          (total, answer) => total + answer,
-        );
+    int total = 0;
+
+    for (int index = 0; index < _answers.length; index++) {
+      final selectedOption = _answers[index];
+
+      if (selectedOption != null) {
+        total += wellnessQuestions[index].scores[selectedOption];
+      }
+    }
+
+    return total;
   }
 
   // ===========================================================
   // Submit Assessment
-  // Calculates and stores one assessment for the current month.
+  // Calculates and saves one GHQ-12 assessment for the
+  // signed-in user for the current month.
   // ===========================================================
   Future<void> _submitAssessment() async {
     if (_isSaving) return;
@@ -170,7 +188,7 @@ class _WellnessSurveyScreenState extends State<WellnessSurveyScreen> {
             children: [
               // ===========================================================
               // Survey Progress
-              // Shows the current question and overall progress.
+              // Displays the current question number and progress.
               // ===========================================================
               Text(
                 'Question ${_currentQuestionIndex + 1} '
@@ -187,8 +205,21 @@ class _WellnessSurveyScreenState extends State<WellnessSurveyScreen> {
               const SizedBox(height: AppSpacing.large),
 
               // ===========================================================
+              // Survey Context
+              // Reminds the user that the questionnaire focuses on
+              // how they have been feeling recently.
+              // ===========================================================
+              if (_currentQuestionIndex == 0) ...[
+                const Text(
+                  'Have you recently...',
+                  style: AppTextStyles.caption,
+                ),
+                const SizedBox(height: AppSpacing.small),
+              ],
+
+              // ===========================================================
               // Current Question
-              // Reads the question from the reusable questionnaire data.
+              // Reads the current GHQ-12 question from reusable data.
               // ===========================================================
               Text(
                 currentQuestion.text,
@@ -199,7 +230,8 @@ class _WellnessSurveyScreenState extends State<WellnessSurveyScreen> {
 
               // ===========================================================
               // Answer Options
-              // Reads the response options from the question model.
+              // Displays the four responses defined for this question.
+              // RadioGroup manages the selected value.
               // ===========================================================
               Expanded(
                 child: RadioGroup<int>(
@@ -238,7 +270,8 @@ class _WellnessSurveyScreenState extends State<WellnessSurveyScreen> {
 
               // ===========================================================
               // Survey Navigation
-              // Allows navigation between questions and final submission.
+              // Allows users to move backward or continue forward.
+              // The final question submits the assessment.
               // ===========================================================
               Row(
                 children: [

@@ -1,6 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-
+import 'forgot_password_screen.dart';
 import '../services/auth_service.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_text_styles.dart';
@@ -192,10 +192,15 @@ class _LoginScreenState extends State<LoginScreen> {
                   alignment: Alignment.centerRight,
                   child: TextButton(
                     onPressed: _isLoading
-                        ? null
-                        : () {
-                            // Password reset will be added later.
-                          },
+    ? null
+    : () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const ForgotPasswordScreen(),
+          ),
+        );
+      },
                     child: const Text('Forgot Password?'),
                   ),
                 ),

@@ -1,12 +1,15 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../models/app_user.dart';
 import '../services/auth_service.dart';
 import '../services/user_service.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_text_styles.dart';
 import '../utils/snackbar_helper.dart';
+import '../widgets/avatar_circle.dart';
 import '../widgets/loading_indicator.dart';
+import 'edit_profile_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -17,6 +20,57 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _isDeletingAccount = false;
+
+  // ===========================================================
+  // Stored Profile
+  // Holds the name and avatar saved in Cloud Firestore.
+  // ===========================================================
+  AppUser? _profile;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  // ===========================================================
+  // Load Profile
+  // Reads the stored name and avatar for display.
+  // ===========================================================
+  Future<void> _loadProfile() async {
+    final user = AuthService.currentUser;
+
+    if (user == null) return;
+
+    try {
+      final profile = await UserService.getUser(user.uid);
+
+      if (!mounted) return;
+
+      setState(() {
+        _profile = profile;
+      });
+    } catch (_) {
+      // The screen still works using the Firebase account details.
+    }
+  }
+
+  // ===========================================================
+  // Open Edit Profile
+  // Reloads the profile when changes were saved.
+  // ===========================================================
+  Future<void> _openEditProfile() async {
+    final saved = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const EditProfileScreen(),
+      ),
+    );
+
+    if (saved == true) {
+      await _loadProfile();
+    }
+  }
 
   // ===========================================================
   // Sign Out
@@ -249,13 +303,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               // User Information
               // Displays the authenticated user's profile details.
               // ===========================================================
-              const Center(
-                child: CircleAvatar(
-                  radius: 44,
-                  child: Icon(
-                    Icons.person_outline,
-                    size: 44,
-                  ),
+              Center(
+                child: AvatarCircle(
+                  avatarId: _profile?.avatarId ?? '',
                 ),
               ),
 
@@ -263,7 +313,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
               Center(
                 child: Text(
-                  user?.displayName ?? 'User',
+                  _profile?.name ?? user?.displayName ?? 'User',
                   style: AppTextStyles.heading1,
                 ),
               ),
@@ -294,7 +344,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 leading: const Icon(Icons.person_outline),
                 title: const Text('Personal Information'),
                 trailing: const Icon(Icons.chevron_right),
-                onTap: () {},
+                onTap: _isDeletingAccount ? null : _openEditProfile,
               ),
 
               const Divider(),

@@ -8,6 +8,9 @@ class AppUser {
     required this.name,
     required this.email,
     required this.createdAt,
+    this.avatarId = '',
+    this.consentVersion = '',
+    this.consentAcceptedAt,
   });
 
   // ===========================================================
@@ -19,6 +22,19 @@ class AppUser {
   final DateTime createdAt;
 
   // ===========================================================
+  // Profile Appearance
+  // The id of the chosen preset avatar. Empty means the default.
+  // ===========================================================
+  final String avatarId;
+
+  // ===========================================================
+  // Consent Record
+  // The version of the privacy rules the user accepted, and when.
+  // ===========================================================
+  final String consentVersion;
+  final DateTime? consentAcceptedAt;
+
+  // ===========================================================
   // Firestore Serialization
   // Converts the object into a Firestore document.
   // ===========================================================
@@ -27,6 +43,9 @@ class AppUser {
       'name': name,
       'email': email,
       'createdAt': createdAt.toIso8601String(),
+      'avatarId': avatarId,
+      'consentVersion': consentVersion,
+      'consentAcceptedAt': consentAcceptedAt?.toIso8601String(),
     };
   }
 
@@ -46,6 +65,11 @@ class AppUser {
             map['createdAt'] as String? ?? '',
           ) ??
           DateTime.now(),
+      avatarId: map['avatarId'] as String? ?? '',
+      consentVersion: map['consentVersion'] as String? ?? '',
+      consentAcceptedAt: DateTime.tryParse(
+        map['consentAcceptedAt'] as String? ?? '',
+      ),
     );
   }
 
@@ -58,12 +82,18 @@ class AppUser {
     String? name,
     String? email,
     DateTime? createdAt,
+    String? avatarId,
+    String? consentVersion,
+    DateTime? consentAcceptedAt,
   }) {
     return AppUser(
       id: id ?? this.id,
       name: name ?? this.name,
       email: email ?? this.email,
       createdAt: createdAt ?? this.createdAt,
+      avatarId: avatarId ?? this.avatarId,
+      consentVersion: consentVersion ?? this.consentVersion,
+      consentAcceptedAt: consentAcceptedAt ?? this.consentAcceptedAt,
     );
   }
 }

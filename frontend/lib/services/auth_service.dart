@@ -95,4 +95,35 @@ class AuthService {
 
     await user.reauthenticateWithCredential(credential);
   }
+
+  // ===========================================================
+  // Send Password Reset
+  // Emails a link that lets the user set a new password.
+  //
+  // Firebase does not report whether the address is registered,
+  // which keeps the list of accounts private.
+  // ===========================================================
+  static Future<void> sendPasswordReset({
+    required String email,
+  }) {
+    return _auth.sendPasswordResetEmail(
+      email: email.trim(),
+    );
+  }
+
+  // ===========================================================
+  // Update Display Name
+  // Changes the name Firebase reports for the current user.
+  // The reload keeps currentUser in step with the change.
+  // ===========================================================
+  static Future<void> updateDisplayName(String name) async {
+    final user = _auth.currentUser;
+
+    if (user == null) {
+      throw StateError('No authenticated user.');
+    }
+
+    await user.updateDisplayName(name.trim());
+    await user.reload();
+  }
 }

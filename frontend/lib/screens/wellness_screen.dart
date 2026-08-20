@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../models/habit_quest.dart';
 import '../models/wellness_assessment.dart';
 import '../services/auth_service.dart';
+import '../services/weekly_quest_service.dart';
 import '../services/wellness_service.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_text_styles.dart';
@@ -18,32 +20,49 @@ class WellnessScreen extends StatefulWidget {
 
 class _WellnessScreenState extends State<WellnessScreen> {
   Future<WellnessAssessment?>? _assessmentFuture;
+  Future<List<HabitQuest>>? _weeklyQuestsFuture;
+
+  bool _isUpdatingQuest = false;
 
   @override
   void initState() {
     super.initState();
-    _loadAssessment();
+    _loadWellnessData();
   }
 
   // ===========================================================
-  // Load Assessment
-  // Loads the user's assessment for the current month.
+  // Load Wellness Data
   // ===========================================================
-  void _loadAssessment() {
+  void _loadWellnessData() {
     final user = AuthService.currentUser;
 
     if (user == null) {
       _assessmentFuture = Future.value(null);
+      _weeklyQuestsFuture = Future.value([]);
       return;
     }
 
     _assessmentFuture = WellnessService.getCurrentMonthAssessment(user.uid);
+
+    _weeklyQuestsFuture = WeeklyQuestService.getCurrentWeeklyPlan(user.uid);
+  }
+
+  // ===========================================================
+  // Refresh Weekly Quests
+  // ===========================================================
+  void _refreshWeeklyQuests() {
+    final user = AuthService.currentUser;
+
+    if (user == null) {
+      _weeklyQuestsFuture = Future.value([]);
+      return;
+    }
+
+    _weeklyQuestsFuture = WeeklyQuestService.getCurrentWeeklyPlan(user.uid);
   }
 
   // ===========================================================
   // Open Survey
-  // Opens the monthly assessment and refreshes the score
-  // when the user returns.
   // ===========================================================
   Future<void> _openSurvey() async {
     await Navigator.push(
@@ -56,13 +75,12 @@ class _WellnessScreenState extends State<WellnessScreen> {
     if (!mounted) return;
 
     setState(() {
-      _loadAssessment();
+      _loadWellnessData();
     });
   }
 
   // ===========================================================
   // Open Trends
-  // Opens the user's previous wellness scores and trend chart.
   // ===========================================================
   void _openTrends() {
     Navigator.push(
@@ -75,7 +93,6 @@ class _WellnessScreenState extends State<WellnessScreen> {
 
   // ===========================================================
   // Month Name
-  // Converts a numeric month into a readable month name.
   // ===========================================================
   String _monthName(int month) {
     const months = [
@@ -100,6 +117,53 @@ class _WellnessScreenState extends State<WellnessScreen> {
     return months[month - 1];
   }
 
+  // ===========================================================
+  // Complete / Undo Quest Today
+  // ===========================================================
+  Future<void> _toggleQuestToday(
+    HabitQuest quest,
+  ) async {
+    if (_isUpdatingQuest) return;
+
+    final user = AuthService.currentUser;
+
+    if (user == null) return;
+
+    final today = WeeklyQuestService.dateId(DateTime.now());
+
+    final completedToday = quest.completedDates.contains(today);
+
+    setState(() {
+      _isUpdatingQuest = true;
+    });
+
+    try {
+      if (completedToday) {
+        await WeeklyQuestService.undoQuestToday(
+          userId: user.uid,
+          questId: quest.id,
+        );
+      } else {
+        await WeeklyQuestService.completeQuestToday(
+          userId: user.uid,
+          questId: quest.id,
+        );
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        _refreshWeeklyQuests();
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUpdatingQuest = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -109,71 +173,100 @@ class _WellnessScreenState extends State<WellnessScreen> {
       body: SafeArea(
         child: FutureBuilder<WellnessAssessment?>(
           future: _assessmentFuture,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
+          builder: (context, assessmentSnapshot) {
+            if (assessmentSnapshot.connectionState == ConnectionState.waiting) {
               return const Center(
                 child: LoadingIndicator(),
               );
             }
 
-            if (snapshot.hasError) {
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.regular),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        'Unable to load your wellness information.',
-                        style: AppTextStyles.body,
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: AppSpacing.medium),
-                      FilledButton(
-                        onPressed: () {
-                          setState(() {
-                            _loadAssessment();
-                          });
-                        },
-                        child: const Text('Try Again'),
-                      ),
-                    ],
-                  ),
-                ),
+            if (assessmentSnapshot.hasError) {
+              return _ErrorState(
+                onRetry: () {
+                  setState(() {
+                    _loadWellnessData();
+                  });
+                },
               );
             }
 
-            final assessment = snapshot.data;
+            final assessment = assessmentSnapshot.data;
 
-            return SingleChildScrollView(
-              padding: const EdgeInsets.all(AppSpacing.regular),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Your Wellness',
-                    style: AppTextStyles.heading1,
+            return FutureBuilder<List<HabitQuest>>(
+              future: _weeklyQuestsFuture,
+              builder: (context, questSnapshot) {
+                if (questSnapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: LoadingIndicator(),
+                  );
+                }
+
+                if (questSnapshot.hasError) {
+                  return _ErrorState(
+                    onRetry: () {
+                      setState(() {
+                        _loadWellnessData();
+                      });
+                    },
+                  );
+                }
+
+                final weeklyQuests = questSnapshot.data ?? [];
+
+                return SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.regular,
+                    AppSpacing.medium,
+                    AppSpacing.regular,
+                    120,
                   ),
-                  const SizedBox(height: AppSpacing.large),
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(AppSpacing.regular),
-                      child: assessment != null
-                          ? _CompletedAssessmentContent(
-                              assessment: assessment,
-                              monthName: _monthName(
-                                assessment.month,
-                              ),
-                              onViewTrends: _openTrends,
-                            )
-                          : _IncompleteAssessmentContent(
-                              onStartAssessment: _openSurvey,
-                              onViewTrends: _openTrends,
-                            ),
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (assessment != null)
+                        _CompactAssessmentCard(
+                          assessment: assessment,
+                          monthName: _monthName(assessment.month),
+                          onViewTrends: _openTrends,
+                        )
+                      else
+                        _IncompleteAssessmentCard(
+                          onStartAssessment: _openSurvey,
+                          onViewTrends: _openTrends,
+                        ),
+                      if (weeklyQuests.isNotEmpty) ...[
+                        const SizedBox(
+                          height: AppSpacing.medium,
+                        ),
+                        const Text(
+                          'Weekly Wellness Quests',
+                          style: AppTextStyles.heading2,
+                        ),
+                        const SizedBox(
+                          height: AppSpacing.xSmall,
+                        ),
+                        const Text(
+                          'Improve your wellness by completing the quests below.',
+                          style: AppTextStyles.caption,
+                        ),
+                        const SizedBox(
+                          height: AppSpacing.small,
+                        ),
+                        for (final quest in weeklyQuests) ...[
+                          _CompactQuestTile(
+                            quest: quest,
+                            enabled: !_isUpdatingQuest,
+                            onTap: () => _toggleQuestToday(quest),
+                          ),
+                          const SizedBox(
+                            height: AppSpacing.xSmall,
+                          ),
+                        ],
+                      ],
+                    ],
                   ),
-                ],
-              ),
+                );
+              },
             );
           },
         ),
@@ -183,10 +276,10 @@ class _WellnessScreenState extends State<WellnessScreen> {
 }
 
 // =====================================================================
-// Completed Assessment
+// Compact Assessment Card
 // =====================================================================
-class _CompletedAssessmentContent extends StatelessWidget {
-  const _CompletedAssessmentContent({
+class _CompactAssessmentCard extends StatelessWidget {
+  const _CompactAssessmentCard({
     required this.assessment,
     required this.monthName,
     required this.onViewTrends,
@@ -196,128 +289,229 @@ class _CompletedAssessmentContent extends StatelessWidget {
   final String monthName;
   final VoidCallback onViewTrends;
 
-  // ===========================================================
-  // Score Color
-  // 0–3  = Green
-  // 4–7  = Blue
-  // 8–12 = Yellow
-  // ===========================================================
   Color _scoreColor(BuildContext context) {
-    final score = assessment.score;
-
-    if (score <= 3) {
+    if (assessment.score <= 3) {
       return Colors.green;
     }
 
-    if (score <= 7) {
+    if (assessment.score <= 7) {
       return Theme.of(context).colorScheme.primary;
     }
 
     return Colors.amber.shade700;
   }
 
-  // ===========================================================
-  // Score Label
-  // ===========================================================
   String _scoreLabel() {
-    final score = assessment.score;
-
-    if (score <= 3) {
+    if (assessment.score <= 3) {
       return 'Low distress';
     }
 
-    if (score <= 7) {
+    if (assessment.score <= 7) {
       return 'Moderate distress';
     }
 
-    return 'High distress';
+    return 'Elevated distress';
   }
 
-  // ===========================================================
-  // Score Message
-  // ===========================================================
   String _scoreMessage() {
-    final score = assessment.score;
-
-    if (score <= 3) {
-      return 'Your responses suggest relatively few signs of psychological distress.';
+    if (assessment.score <= 3) {
+      return 'Few signs of psychological distress.';
     }
 
-    if (score <= 7) {
-      return 'Your responses suggest some signs of psychological distress. Continue monitoring how you feel over time.';
+    if (assessment.score <= 7) {
+      return 'Some signs of psychological distress.';
     }
 
-    return 'Your responses suggest a higher level of psychological distress. Consider giving extra attention to your wellbeing and seeking support if these feelings persist.';
+    return 'Higher signs of psychological distress.';
   }
 
   @override
   Widget build(BuildContext context) {
     final scoreColor = _scoreColor(context);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Current Wellness Score',
-          style: AppTextStyles.heading2,
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(
+          AppSpacing.medium,
         ),
-        const SizedBox(height: AppSpacing.large),
-        Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(
-              Icons.check_circle_outline,
-              size: 34,
-              color: scoreColor,
+            // ===========================================================
+            // Header
+            // ===========================================================
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Monthly Wellness Check',
+                    style: AppTextStyles.heading2,
+                  ),
+                ),
+                const SizedBox(
+                  width: AppSpacing.small,
+                ),
+                IntrinsicWidth(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(0, 34),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    onPressed: onViewTrends,
+                    icon: const Icon(
+                      Icons.show_chart,
+                      size: 15,
+                    ),
+                    label: const Text(
+                      'Trends',
+                    ),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: AppSpacing.medium),
+
+            const SizedBox(
+              height: AppSpacing.medium,
+            ),
+
+            // ===========================================================
+            // Score
+            // ===========================================================
             Text(
               '${assessment.score} / 12',
               style: AppTextStyles.heading1,
             ),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.medium),
-        Text(
-          _scoreLabel(),
-          style: AppTextStyles.title.copyWith(
-            color: scoreColor,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.small),
-        Text(
-          _scoreMessage(),
-          style: AppTextStyles.caption,
-        ),
-        const SizedBox(height: AppSpacing.large),
-        Text(
-          'Completed • $monthName ${assessment.year}',
-          style: AppTextStyles.caption,
-        ),
-        const SizedBox(height: AppSpacing.large),
-        Align(
-          alignment: Alignment.centerRight,
-          child: IntrinsicWidth(
-            child: OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size(0, 40),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 8,
-                ),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              onPressed: onViewTrends,
-              icon: const Icon(
-                Icons.show_chart,
-                size: 18,
-              ),
-              label: const Text(
-                'View Trends',
+
+            const SizedBox(
+              height: AppSpacing.small,
+            ),
+
+            // ===========================================================
+            // Status
+            // ===========================================================
+            Text(
+              _scoreLabel(),
+              style: AppTextStyles.title.copyWith(
+                color: scoreColor,
               ),
             ),
+
+            const SizedBox(
+              height: AppSpacing.xSmall,
+            ),
+
+            Text(
+              _scoreMessage(),
+              style: AppTextStyles.caption,
+            ),
+
+            const SizedBox(
+              height: AppSpacing.small,
+            ),
+
+            Text(
+              'Completed • $monthName ${assessment.year}',
+              style: AppTextStyles.caption,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// =====================================================================
+// Compact Quest Tile
+// =====================================================================
+class _CompactQuestTile extends StatelessWidget {
+  const _CompactQuestTile({
+    required this.quest,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  final HabitQuest quest;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final today = WeeklyQuestService.dateId(DateTime.now());
+
+    final completedToday = quest.completedDates.contains(today);
+
+    final targetReached = quest.isCompleted;
+
+    return Card(
+      margin: EdgeInsets.zero,
+      child: InkWell(
+        onTap: enabled && (!targetReached || completedToday) ? onTap : null,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.medium,
+            vertical: AppSpacing.small,
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Checkbox(
+                value: completedToday || targetReached,
+                visualDensity: VisualDensity.compact,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                onChanged: enabled && (!targetReached || completedToday)
+                    ? (_) => onTap()
+                    : null,
+              ),
+              const SizedBox(
+                width: AppSpacing.small,
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      quest.title,
+                      style: AppTextStyles.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(
+                      height: 2,
+                    ),
+                    Text(
+                      quest.description,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.caption,
+                    ),
+                    const SizedBox(
+                      height: 2,
+                    ),
+                    Text(
+                      targetReached
+                          ? 'Completed this week'
+                          : completedToday
+                              ? 'Done today • '
+                                  '${quest.completedCount}/${quest.targetCount}'
+                              : '${quest.completedCount}/${quest.targetCount} this week',
+                      style: AppTextStyles.caption,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
-      ],
+      ),
     );
   }
 }
@@ -325,8 +519,8 @@ class _CompletedAssessmentContent extends StatelessWidget {
 // =====================================================================
 // Incomplete Assessment
 // =====================================================================
-class _IncompleteAssessmentContent extends StatelessWidget {
-  const _IncompleteAssessmentContent({
+class _IncompleteAssessmentCard extends StatelessWidget {
+  const _IncompleteAssessmentCard({
     required this.onStartAssessment,
     required this.onViewTrends,
   });
@@ -336,78 +530,116 @@ class _IncompleteAssessmentContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Current Wellness Score',
-          style: AppTextStyles.heading2,
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(
+          AppSpacing.medium,
         ),
-        const SizedBox(height: AppSpacing.large),
-        const Row(
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(
-              Icons.info_outline,
-              size: 28,
+            const Text(
+              'Current Wellness Score',
+              style: AppTextStyles.heading2,
             ),
-            SizedBox(width: AppSpacing.medium),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Not completed this month',
-                    style: AppTextStyles.title,
+            const SizedBox(
+              height: AppSpacing.medium,
+            ),
+            const Text(
+              'Not completed this month',
+              style: AppTextStyles.title,
+            ),
+            const SizedBox(
+              height: AppSpacing.xSmall,
+            ),
+            const Text(
+              'Complete your monthly wellness check to view your score.',
+              style: AppTextStyles.caption,
+            ),
+            const SizedBox(
+              height: AppSpacing.medium,
+            ),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: onStartAssessment,
+                icon: const Icon(
+                  Icons.assignment_outlined,
+                ),
+                label: const Text(
+                  'Start Assessment',
+                ),
+              ),
+            ),
+            const SizedBox(
+              height: AppSpacing.small,
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: IntrinsicWidth(
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(0, 34),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
-                  SizedBox(height: AppSpacing.xSmall),
-                  Text(
-                    'Complete your monthly wellness check to view your current score.',
-                    style: AppTextStyles.caption,
+                  onPressed: onViewTrends,
+                  icon: const Icon(
+                    Icons.show_chart,
+                    size: 16,
                   ),
-                ],
+                  label: const Text(
+                    'Previous Trends',
+                  ),
+                ),
               ),
             ),
           ],
         ),
-        const SizedBox(height: AppSpacing.large),
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton.icon(
-            onPressed: onStartAssessment,
-            icon: const Icon(
-              Icons.assignment_outlined,
-            ),
-            label: const Text(
-              'Start Assessment',
-            ),
-          ),
+      ),
+    );
+  }
+}
+
+// =====================================================================
+// Error State
+// =====================================================================
+class _ErrorState extends StatelessWidget {
+  const _ErrorState({
+    required this.onRetry,
+  });
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(
+          AppSpacing.regular,
         ),
-        const SizedBox(height: AppSpacing.medium),
-        Align(
-          alignment: Alignment.centerRight,
-          child: IntrinsicWidth(
-            child: OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size(0, 40),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 8,
-                ),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              onPressed: onViewTrends,
-              icon: const Icon(
-                Icons.show_chart,
-                size: 18,
-              ),
-              label: const Text(
-                'Previous Trends',
-              ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Unable to load your wellness information.',
+              style: AppTextStyles.body,
+              textAlign: TextAlign.center,
             ),
-          ),
+            const SizedBox(
+              height: AppSpacing.medium,
+            ),
+            FilledButton(
+              onPressed: onRetry,
+              child: const Text('Try Again'),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }

@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../data/wellness_questions.dart';
 import '../models/wellness_assessment.dart';
 import '../services/auth_service.dart';
+import '../services/weekly_quest_service.dart';
+import '../services/wellness_quest_service.dart';
 import '../services/wellness_service.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_text_styles.dart';
@@ -20,9 +22,6 @@ class _WellnessSurveyScreenState extends State<WellnessSurveyScreen> {
   // ===========================================================
   // Survey State
   // Stores one selected response for each GHQ-12 question.
-  //
-  // Each stored value represents the selected option index:
-  // 0, 1, 2, or 3.
   // ===========================================================
   final List<int?> _answers = List<int?>.filled(wellnessQuestions.length, null);
 
@@ -31,7 +30,6 @@ class _WellnessSurveyScreenState extends State<WellnessSurveyScreen> {
 
   // ===========================================================
   // Select Answer
-  // Stores the selected option for the current question.
   // ===========================================================
   void _selectAnswer(int value) {
     setState(() {
@@ -41,7 +39,6 @@ class _WellnessSurveyScreenState extends State<WellnessSurveyScreen> {
 
   // ===========================================================
   // Previous Question
-  // Moves the user back to the previous question.
   // ===========================================================
   void _previousQuestion() {
     if (_currentQuestionIndex == 0) return;
@@ -53,8 +50,6 @@ class _WellnessSurveyScreenState extends State<WellnessSurveyScreen> {
 
   // ===========================================================
   // Next Question
-  // Ensures the current question is answered before continuing.
-  // The final question submits the assessment.
   // ===========================================================
   void _nextQuestion() {
     if (_answers[_currentQuestionIndex] == null) {
@@ -77,15 +72,8 @@ class _WellnessSurveyScreenState extends State<WellnessSurveyScreen> {
 
   // ===========================================================
   // Calculate Score
-  // Uses GHQ binary scoring:
-  //
-  // Option 1 = 0
-  // Option 2 = 0
-  // Option 3 = 1
-  // Option 4 = 1
-  //
+  // Uses GHQ binary scoring: 0, 0, 1, 1.
   // Total score range: 0 to 12.
-  // Higher scores represent greater psychological distress.
   // ===========================================================
   int _calculateScore() {
     int total = 0;
@@ -103,8 +91,8 @@ class _WellnessSurveyScreenState extends State<WellnessSurveyScreen> {
 
   // ===========================================================
   // Submit Assessment
-  // Calculates and saves one GHQ-12 assessment for the
-  // signed-in user for the current month.
+  // Saves the monthly GHQ assessment and generates the
+  // user's personalized weekly wellness quest plan.
   // ===========================================================
   Future<void> _submitAssessment() async {
     if (_isSaving) return;
@@ -134,17 +122,41 @@ class _WellnessSurveyScreenState extends State<WellnessSurveyScreen> {
     try {
       final now = DateTime.now();
 
+      final selectedAnswers = _answers.cast<int>();
+
+      // ===========================================================
+      // Monthly Wellness Assessment
+      // ===========================================================
       final assessment = WellnessAssessment(
         id: WellnessService.monthlyAssessmentId(now),
         userId: user.uid,
         year: now.year,
         month: now.month,
         score: _calculateScore(),
-        answers: _answers.cast<int>(),
+        answers: selectedAnswers,
         completedAt: DateTime.now().toUtc(),
       );
 
       await WellnessService.saveAssessment(assessment);
+
+      // ===========================================================
+      // Weekly Quest Generation
+      // Generates personalized quests based on the individual
+      // GHQ responses, not only the final score.
+      // ===========================================================
+      final weeklyQuests = WellnessQuestService.generateWeeklyQuests(
+        selectedAnswers,
+      );
+
+      // ===========================================================
+      // Save Weekly Quest Plan
+      // Stores the plan once for the current week.
+      // ===========================================================
+      await WeeklyQuestService.saveWeeklyPlan(
+        userId: user.uid,
+        sourceAssessmentId: assessment.id,
+        quests: weeklyQuests,
+      );
 
       if (!mounted) return;
 
@@ -188,7 +200,6 @@ class _WellnessSurveyScreenState extends State<WellnessSurveyScreen> {
             children: [
               // ===========================================================
               // Survey Progress
-              // Displays the current question number and progress.
               // ===========================================================
               Text(
                 'Question ${_currentQuestionIndex + 1} '
@@ -206,8 +217,6 @@ class _WellnessSurveyScreenState extends State<WellnessSurveyScreen> {
 
               // ===========================================================
               // Survey Context
-              // Reminds the user that the questionnaire focuses on
-              // how they have been feeling recently.
               // ===========================================================
               if (_currentQuestionIndex == 0) ...[
                 const Text(
@@ -219,7 +228,6 @@ class _WellnessSurveyScreenState extends State<WellnessSurveyScreen> {
 
               // ===========================================================
               // Current Question
-              // Reads the current GHQ-12 question from reusable data.
               // ===========================================================
               Text(
                 currentQuestion.text,
@@ -230,8 +238,6 @@ class _WellnessSurveyScreenState extends State<WellnessSurveyScreen> {
 
               // ===========================================================
               // Answer Options
-              // Displays the four responses defined for this question.
-              // RadioGroup manages the selected value.
               // ===========================================================
               Expanded(
                 child: RadioGroup<int>(
@@ -270,8 +276,6 @@ class _WellnessSurveyScreenState extends State<WellnessSurveyScreen> {
 
               // ===========================================================
               // Survey Navigation
-              // Allows users to move backward or continue forward.
-              // The final question submits the assessment.
               // ===========================================================
               Row(
                 children: [

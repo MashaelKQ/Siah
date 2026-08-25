@@ -1,11 +1,14 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_text_styles.dart';
+import '../utils/auth_error_messages.dart';
 import '../utils/form_validators.dart';
 import '../utils/snackbar_helper.dart';
-import '../widgets/loading_indicator.dart';
+import '../widgets/ui_kit.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -56,6 +59,18 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       setState(() {
         _emailSent = true;
       });
+    } on FirebaseAuthException catch (error) {
+      // Report the actual reason. A single generic message here
+      // hides the difference between a disabled sign-in method,
+      // a rate limit, and no network at all.
+      if (!mounted) return;
+
+      final message = AuthErrorMessages.passwordReset(error.code);
+
+      SnackbarHelper.show(
+        context,
+        kDebugMode ? '$message  [${error.code}]' : message,
+      );
     } catch (_) {
       if (!mounted) return;
 
@@ -129,14 +144,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
           const SizedBox(height: AppSpacing.large),
 
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              onPressed: _isLoading ? null : _sendResetLink,
-              child: _isLoading
-                  ? const LoadingIndicator()
-                  : const Text('Send Reset Link'),
-            ),
+          GradientButton(
+            label: 'Send Reset Link',
+            isLoading: _isLoading,
+            onPressed: _isLoading ? null : _sendResetLink,
           ),
         ],
       ),
@@ -176,7 +187,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         const SizedBox(height: AppSpacing.medium),
 
         const Text(
-          'No email after a few minutes? Check your spam folder.',
+          'Nothing after a few minutes? Check your spam folder, and check '
+          'the address is one you actually registered with. No email is '
+          'sent to an address that has no account.',
           style: AppTextStyles.caption,
         ),
 

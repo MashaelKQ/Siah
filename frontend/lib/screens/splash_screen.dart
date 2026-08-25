@@ -55,16 +55,23 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Center(
-          // ===========================================================
-          // Application Branding
-          // Displays the Siah logo while the application starts.
-          // ===========================================================
-          child: SiahLogo(
-            height: 180,
+    return Scaffold(
+      body: Container(
+        // ===========================================================
+        // Opening Wash
+        // Light, not a full-strength gradient. The app opens onto
+        // the same pale blue it uses everywhere, so the splash is
+        // continuous with the first real screen rather than a dark
+        // panel that flashes away.
+        // ===========================================================
+        decoration: const BoxDecoration(
+          gradient: AppGradients.sky,
+        ),
+        child: const SafeArea(
+          child: Center(
+            child: SiahLogo(
+              height: 180,
+            ),
           ),
         ),
       ),

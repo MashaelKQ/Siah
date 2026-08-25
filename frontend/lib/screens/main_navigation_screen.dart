@@ -16,12 +16,25 @@ class MainNavigationScreen extends StatefulWidget {
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int currentIndex = 0;
 
-  final List<Widget> screens = const [
-    HomeScreen(),
-    JournalScreen(),
-    WellnessScreen(),
-    ProfileScreen(),
-  ];
+  // ===========================================================
+  // Tab Switching
+  // Moves to a tab from inside a screen, so the Journal card on
+  // Home can open the Journal tab.
+  // ===========================================================
+  void _openTab(int index) {
+    setState(() {
+      currentIndex = index;
+    });
+  }
+
+  // Built in build() rather than held as a const list, because
+  // HomeScreen now needs a callback into this state.
+  List<Widget> get screens => [
+        HomeScreen(onOpenJournal: () => _openTab(1)),
+        const JournalScreen(),
+        const WellnessScreen(),
+        const ProfileScreen(),
+      ];
 
   @override
   Widget build(BuildContext context) {
@@ -32,11 +45,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       ),
       bottomNavigationBar: SiahBottomNavBar(
         currentIndex: currentIndex,
-        onTap: (index) {
-          setState(() {
-            currentIndex = index;
-          });
-        },
+        onTap: _openTab,
       ),
     );
   }

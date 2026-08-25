@@ -28,4 +28,27 @@ class AuthErrorMessages {
       _ => 'Unable to create your account. Please try again.',
     };
   }
+
+  // ===========================================================
+  // Password Reset
+  // Firebase hides whether an address is registered, so there
+  // is deliberately no 'user-not-found' case here: a missing
+  // account returns success and simply sends no email.
+  // ===========================================================
+  static String passwordReset(String errorCode) {
+    return switch (errorCode) {
+      'invalid-email' => 'Please enter a valid email address.',
+      'user-not-found' => 'No account exists for this email.',
+      'missing-email' => 'Please enter your email address.',
+      'operation-not-allowed' =>
+        'Email sign-in is not enabled for this project.',
+      'invalid-api-key' || 'app-not-authorized' =>
+        'This app is not authorised to use Firebase Authentication.',
+      'network-request-failed' =>
+        'Check your internet connection and try again.',
+      'too-many-requests' =>
+        'Too many attempts. Please wait a few minutes and try again.',
+      _ => 'The link could not be sent. Please try again.',
+    };
+  }
 }

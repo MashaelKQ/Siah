@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 
 class AppCard extends StatelessWidget {
@@ -14,12 +15,15 @@ class AppCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      color: color,
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.regular),
-        child: child,
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.regular),
+      decoration: BoxDecoration(
+        color: color ?? AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.medium),
+        boxShadow: AppShadows.card,
       ),
+      child: child,
     );
   }
 }

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../models/app_user.dart';
 import '../services/auth_service.dart';
 import '../services/user_service.dart';
+import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_text_styles.dart';
 import '../utils/snackbar_helper.dart';
@@ -294,8 +295,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
         title: const Text('Profile'),
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.regular),
+        bottom: false,
+        child: SingleChildScrollView(
+          // The bottom padding clears the floating nav bar, which
+          // sits over the content rather than beside it.
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.regular,
+            AppSpacing.regular,
+            AppSpacing.regular,
+            120,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -328,6 +337,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
 
               const SizedBox(height: AppSpacing.large),
+
+              // ===========================================================
+              // About You
+              // The answers given at sign-up. Shown back to the user
+              // because that is the only honest reason to ask someone
+              // to fill in a form about themselves.
+              // ===========================================================
+              if (_profile != null) _AboutYouCard(profile: _profile!),
+
+              if (_profile != null)
+                const SizedBox(height: AppSpacing.large),
 
               // ===========================================================
               // Account Options
@@ -395,7 +415,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 onTap: _confirmDeleteAccount,
               ),
 
-              const Spacer(),
+              const SizedBox(height: AppSpacing.large),
 
               // ===========================================================
               // Sign Out
@@ -417,6 +437,119 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+// ===========================================================
+// About You Card
+// Renders only the answers that were actually given, so a
+// profile full of "Prefer not to say" does not become a wall
+// of empty rows.
+// ===========================================================
+class _AboutYouCard extends StatelessWidget {
+  const _AboutYouCard({required this.profile});
+
+  final AppUser profile;
+
+  @override
+  Widget build(BuildContext context) {
+    final facts = <String, String>{
+      'Age range': profile.ageRange,
+      'Gender': profile.gender,
+      'Situation': profile.occupation,
+      'Typical week': profile.weeklyHours,
+    }..removeWhere((key, value) => value.isEmpty);
+
+    final hasNothing = facts.isEmpty &&
+        profile.goals.isEmpty &&
+        profile.reasons.isEmpty &&
+        profile.onboardingNote.isEmpty;
+
+    if (hasNothing) return const SizedBox.shrink();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.regular),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.medium),
+        boxShadow: AppShadows.card,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('About you', style: AppTextStyles.heading2),
+
+          const SizedBox(height: AppSpacing.medium),
+
+          for (final fact in facts.entries) ...[
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: 120,
+                  child: Text(fact.key, style: AppTextStyles.caption),
+                ),
+                Expanded(
+                  child: Text(fact.value, style: AppTextStyles.body),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.small),
+          ],
+
+          if (profile.goals.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.small),
+            const Text('What you wanted from this',
+                style: AppTextStyles.small),
+            const SizedBox(height: AppSpacing.small),
+            _Tags(values: profile.goals),
+          ],
+
+          if (profile.reasons.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.medium),
+            const Text('What brought you here', style: AppTextStyles.small),
+            const SizedBox(height: AppSpacing.small),
+            _Tags(values: profile.reasons),
+          ],
+
+          if (profile.onboardingNote.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.medium),
+            const Text('In your words', style: AppTextStyles.small),
+            const SizedBox(height: AppSpacing.xSmall),
+            Text(profile.onboardingNote, style: AppTextStyles.body),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _Tags extends StatelessWidget {
+  const _Tags({required this.values});
+
+  final List<String> values;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: AppSpacing.small,
+      runSpacing: AppSpacing.small,
+      children: [
+        for (final value in values)
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.medium,
+              vertical: AppSpacing.small,
+            ),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceMuted,
+              borderRadius: BorderRadius.circular(AppRadius.pill),
+            ),
+            child: Text(value, style: AppTextStyles.caption),
+          ),
+      ],
     );
   }
 }

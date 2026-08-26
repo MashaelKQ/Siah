@@ -30,7 +30,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   // Built in build() rather than held as a const list, because
   // HomeScreen now needs a callback into this state.
   List<Widget> get screens => [
-        HomeScreen(onOpenJournal: () => _openTab(1)),
+        HomeScreen(
+          onOpenJournal: () => _openTab(1),
+          onOpenWellness: () => _openTab(2),
+        ),
         const JournalScreen(),
         const WellnessScreen(),
         const ProfileScreen(),

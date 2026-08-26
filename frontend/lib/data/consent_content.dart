@@ -11,7 +11,10 @@
 // raise consentVersion. Existing users can then be asked again.
 // ===========================================================
 
-const String consentVersion = '2026-08-01';
+// Raised because the app now collects onboarding answers and
+// looks at check-in patterns to send notices. Users who
+// accepted the previous version agreed to neither.
+const String consentVersion = '2026-08-26';
 
 class ConsentSection {
   const ConsentSection({
@@ -40,9 +43,21 @@ const List<ConsentSection> consentSections = [
   ConsentSection(
     title: 'What we collect',
     body: 'Your name and email address, the moods you record, the journal '
-        'entries you write, and your answers to the monthly wellness '
-        'questionnaire. We do not collect your contacts, location, or '
-        'anything from other apps.',
+        'entries you write, your answers to the monthly wellness '
+        'questionnaire, and the questions answered when you first sign up: '
+        'your age range, gender, situation, goals and reasons for using '
+        'Siah. Every one of those sign-up questions except age range can be '
+        'skipped. We do not collect your contacts, location, or anything '
+        'from other apps.',
+  ),
+  ConsentSection(
+    title: 'Patterns and notices',
+    body: 'Siah looks at your mood check-ins on your own device to spot '
+        'patterns, such as several low days in a row or one part of life '
+        'coming up repeatedly. When it notices one it may show a note in '
+        'the app and send a notification. This is not monitoring and not an '
+        'assessment of risk. Nobody reads your entries, and you can turn '
+        'notifications off in your device settings at any time.',
   ),
   ConsentSection(
     title: 'Where it is stored',

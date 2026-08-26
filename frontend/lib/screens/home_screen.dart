@@ -7,10 +7,12 @@ import '../theme/app_text_styles.dart';
 import '../widgets/activity_card.dart';
 import '../widgets/ui_kit.dart';
 import '../widgets/mood_check_in.dart';
+import '../widgets/wellbeing_dashboard.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({
     this.onOpenJournal,
+    this.onOpenWellness,
     super.key,
   });
 
@@ -21,6 +23,7 @@ class HomeScreen extends StatelessWidget {
   // screen. MainNavigationScreen supplies this.
   // ===========================================================
   final VoidCallback? onOpenJournal;
+  final VoidCallback? onOpenWellness;
 
   // ===========================================================
   // Time-Based Greeting
@@ -177,6 +180,15 @@ class HomeScreen extends StatelessWidget {
               const SizedBox(height: AppSpacing.large),
 
               // ===========================================================
+              // Wellbeing Dashboard
+              // The week so far, before the prompt to add to it.
+              // Seeing the week first gives the check-in a reason.
+              // ===========================================================
+              const WellbeingDashboard(),
+
+              const SizedBox(height: AppSpacing.large),
+
+              // ===========================================================
               // Mood Check-In
               // Records the user's emotional state in Cloud Firestore.
               // The card keeps its own state so this screen does not
@@ -222,7 +234,7 @@ class HomeScreen extends StatelessWidget {
                 subtitle: 'View your latest wellbeing progress.',
                 icon: Icons.show_chart,
                 color: AppColors.yellow40,
-                onTap: () {},
+                onTap: onOpenWellness ?? () {},
               ),
             ],
           ),

@@ -65,4 +65,34 @@ class UserService {
       'avatarId': avatarId,
     });
   }
+
+  // ===========================================================
+  // Save Onboarding
+  // Writes only the onboarding fields, so nothing else on the
+  // profile can be clobbered by a stale copy of the document.
+  // ===========================================================
+  static Future<void> saveOnboarding({
+    required String userId,
+    required String ageRange,
+    required String gender,
+    required String occupation,
+    required String weeklyHours,
+    required List<String> goals,
+    required List<String> reasons,
+    required String note,
+  }) async {
+    await _firestore.collection(_collection).doc(userId).set(
+      {
+        'ageRange': ageRange,
+        'gender': gender,
+        'occupation': occupation,
+        'weeklyHours': weeklyHours,
+        'goals': goals,
+        'reasons': reasons,
+        'onboardingNote': note,
+        'onboardingCompletedAt': DateTime.now().toUtc().toIso8601String(),
+      },
+      SetOptions(merge: true),
+    );
+  }
 }

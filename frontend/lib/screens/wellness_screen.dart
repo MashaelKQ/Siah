@@ -5,8 +5,8 @@ import '../models/wellness_assessment.dart';
 import '../services/auth_service.dart';
 import '../services/weekly_quest_service.dart';
 import '../services/wellness_service.dart';
-import '../theme/app_spacing.dart';
 import '../theme/app_text_styles.dart';
+import '../utils/snackbar_helper.dart';
 import '../widgets/loading_indicator.dart';
 import 'wellness_survey_screen.dart';
 import 'wellness_trend_screen.dart';
@@ -118,9 +118,9 @@ class _WellnessScreenState extends State<WellnessScreen> {
   }
 
   // ===========================================================
-  // Complete / Undo Quest Today
+  // Complete / Undo Quest
   // ===========================================================
-  Future<void> _toggleQuestToday(
+  Future<void> _toggleQuest(
     HabitQuest quest,
   ) async {
     if (_isUpdatingQuest) return;
@@ -129,24 +129,34 @@ class _WellnessScreenState extends State<WellnessScreen> {
 
     if (user == null) return;
 
-    final today = WeeklyQuestService.dateId(DateTime.now());
-
-    final completedToday = quest.completedDates.contains(today);
-
     setState(() {
       _isUpdatingQuest = true;
     });
 
     try {
-      if (completedToday) {
-        await WeeklyQuestService.undoQuestToday(
+      if (quest.isCompleted) {
+        await WeeklyQuestService.undoQuest(
           userId: user.uid,
           questId: quest.id,
         );
+
+        if (!mounted) return;
+
+        SnackbarHelper.show(
+          context,
+          'Quest marked incomplete. 1 point removed.',
+        );
       } else {
-        await WeeklyQuestService.completeQuestToday(
+        await WeeklyQuestService.completeQuest(
           userId: user.uid,
           questId: quest.id,
+        );
+
+        if (!mounted) return;
+
+        SnackbarHelper.show(
+          context,
+          '+1 Wellness Point',
         );
       }
 
@@ -155,6 +165,17 @@ class _WellnessScreenState extends State<WellnessScreen> {
       setState(() {
         _refreshWeeklyQuests();
       });
+    } catch (error) {
+      if (!mounted) return;
+
+      SnackbarHelper.show(
+        context,
+        'Unable to update quest.',
+      );
+
+      debugPrint(
+        'Quest update error: $error',
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -166,14 +187,80 @@ class _WellnessScreenState extends State<WellnessScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final user = AuthService.currentUser;
+
     return Scaffold(
+      // ===========================================================
+      // Header
+      // ===========================================================
       appBar: AppBar(
-        title: const Text('Wellness'),
+        title: const Text(
+          'Wellness',
+        ),
+        centerTitle: true,
+        actions: [
+          if (user != null)
+            StreamBuilder<int>(
+              stream: WeeklyQuestService.wellnessPointsStream(
+                user.uid,
+              ),
+              builder: (
+                context,
+                snapshot,
+              ) {
+                final points = snapshot.data ?? 0;
+
+                return Padding(
+                  padding: const EdgeInsets.only(
+                    right: 16,
+                  ),
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 11,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(
+                          20,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.stars_rounded,
+                            size: 17,
+                          ),
+                          const SizedBox(
+                            width: 5,
+                          ),
+                          Text(
+                            '$points pts',
+                            style: AppTextStyles.title.copyWith(
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+        ],
       ),
+
       body: SafeArea(
         child: FutureBuilder<WellnessAssessment?>(
           future: _assessmentFuture,
-          builder: (context, assessmentSnapshot) {
+          builder: (
+            context,
+            assessmentSnapshot,
+          ) {
             if (assessmentSnapshot.connectionState == ConnectionState.waiting) {
               return const Center(
                 child: LoadingIndicator(),
@@ -194,7 +281,10 @@ class _WellnessScreenState extends State<WellnessScreen> {
 
             return FutureBuilder<List<HabitQuest>>(
               future: _weeklyQuestsFuture,
-              builder: (context, questSnapshot) {
+              builder: (
+                context,
+                questSnapshot,
+              ) {
                 if (questSnapshot.connectionState == ConnectionState.waiting) {
                   return const Center(
                     child: LoadingIndicator(),
@@ -211,58 +301,100 @@ class _WellnessScreenState extends State<WellnessScreen> {
                   );
                 }
 
-                final weeklyQuests = questSnapshot.data ?? [];
+                final quests = questSnapshot.data ?? [];
 
-                return SingleChildScrollView(
+                final completed = quests
+                    .where(
+                      (quest) => quest.isCompleted,
+                    )
+                    .length;
+
+                return Padding(
                   padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.regular,
-                    AppSpacing.medium,
-                    AppSpacing.regular,
-                    120,
+                    16,
+                    8,
+                    16,
+                    100,
                   ),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // ==============================================
+                      // Monthly Wellness Check
+                      // ==============================================
                       if (assessment != null)
-                        _CompactAssessmentCard(
+                        _MonthlyCheckCard(
                           assessment: assessment,
-                          monthName: _monthName(assessment.month),
+                          monthName: _monthName(
+                            assessment.month,
+                          ),
                           onViewTrends: _openTrends,
                         )
                       else
-                        _IncompleteAssessmentCard(
-                          onStartAssessment: _openSurvey,
-                          onViewTrends: _openTrends,
+                        _StartAssessmentCard(
+                          onTap: _openSurvey,
                         ),
-                      if (weeklyQuests.isNotEmpty) ...[
-                        const SizedBox(
-                          height: AppSpacing.medium,
-                        ),
-                        const Text(
-                          'Weekly Wellness Quests',
-                          style: AppTextStyles.heading2,
-                        ),
-                        const SizedBox(
-                          height: AppSpacing.xSmall,
-                        ),
-                        const Text(
-                          'Improve your wellness by completing the quests below.',
-                          style: AppTextStyles.caption,
-                        ),
-                        const SizedBox(
-                          height: AppSpacing.small,
-                        ),
-                        for (final quest in weeklyQuests) ...[
-                          _CompactQuestTile(
-                            quest: quest,
-                            enabled: !_isUpdatingQuest,
-                            onTap: () => _toggleQuestToday(quest),
-                          ),
-                          const SizedBox(
-                            height: AppSpacing.xSmall,
-                          ),
-                        ],
-                      ],
+
+                      const SizedBox(
+                        height: 10,
+                      ),
+
+                      // ==============================================
+                      // Weekly Progress
+                      // ==============================================
+                      _WeeklyProgressCard(
+                        completed: completed,
+                        total: quests.length,
+                      ),
+
+                      const SizedBox(
+                        height: 10,
+                      ),
+
+                      // ==============================================
+                      // Weekly Quests
+                      // ==============================================
+                      Expanded(
+                        child: quests.isEmpty
+                            ? _EmptyQuestState(
+                                onStartAssessment: _openSurvey,
+                              )
+                            : Card(
+                                margin: EdgeInsets.zero,
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 2,
+                                  ),
+                                  child: ListView.separated(
+                                    physics:
+                                        const NeverScrollableScrollPhysics(),
+                                    itemCount: quests.length,
+                                    separatorBuilder: (
+                                      context,
+                                      index,
+                                    ) {
+                                      return const Divider(
+                                        height: 1,
+                                      );
+                                    },
+                                    itemBuilder: (
+                                      context,
+                                      index,
+                                    ) {
+                                      final quest = quests[index];
+
+                                      return _QuestRow(
+                                        quest: quest,
+                                        enabled: !_isUpdatingQuest,
+                                        onTap: () => _toggleQuest(
+                                          quest,
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
+                      ),
                     ],
                   ),
                 );
@@ -276,10 +408,10 @@ class _WellnessScreenState extends State<WellnessScreen> {
 }
 
 // =====================================================================
-// Compact Assessment Card
+// Monthly Wellness Check
 // =====================================================================
-class _CompactAssessmentCard extends StatelessWidget {
-  const _CompactAssessmentCard({
+class _MonthlyCheckCard extends StatelessWidget {
+  const _MonthlyCheckCard({
     required this.assessment,
     required this.monthName,
     required this.onViewTrends,
@@ -288,18 +420,6 @@ class _CompactAssessmentCard extends StatelessWidget {
   final WellnessAssessment assessment;
   final String monthName;
   final VoidCallback onViewTrends;
-
-  Color _scoreColor(BuildContext context) {
-    if (assessment.score <= 3) {
-      return Colors.green;
-    }
-
-    if (assessment.score <= 7) {
-      return Theme.of(context).colorScheme.primary;
-    }
-
-    return Colors.amber.shade700;
-  }
 
   String _scoreLabel() {
     if (assessment.score <= 3) {
@@ -313,111 +433,105 @@ class _CompactAssessmentCard extends StatelessWidget {
     return 'Elevated distress';
   }
 
-  String _scoreMessage() {
+  String _scoreMeaning() {
     if (assessment.score <= 3) {
       return 'Few signs of psychological distress.';
     }
 
     if (assessment.score <= 7) {
-      return 'Some signs of psychological distress.';
+      return 'Some signs of psychological distress are present.';
     }
 
-    return 'Higher signs of psychological distress.';
+    return 'More signs of psychological distress are present.';
+  }
+
+  Color _scoreColor() {
+    if (assessment.score <= 3) {
+      return Colors.green;
+    }
+
+    if (assessment.score <= 7) {
+      return Colors.green;
+    }
+
+    return Colors.orange;
   }
 
   @override
   Widget build(BuildContext context) {
-    final scoreColor = _scoreColor(context);
-
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.all(
-          AppSpacing.medium,
+        padding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ===========================================================
-            // Header
-            // ===========================================================
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Expanded(
-                  child: Text(
-                    'Monthly Wellness Check',
-                    style: AppTextStyles.heading2,
-                  ),
-                ),
-                const SizedBox(
-                  width: AppSpacing.small,
-                ),
-                IntrinsicWidth(
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size(0, 34),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    onPressed: onViewTrends,
-                    icon: const Icon(
-                      Icons.show_chart,
-                      size: 15,
-                    ),
-                    label: const Text(
-                      'Trends',
-                    ),
-                  ),
-                ),
-              ],
+            const Text(
+              'Monthly Wellness Check',
+              style: AppTextStyles.title,
             ),
-
             const SizedBox(
-              height: AppSpacing.medium,
+              height: 8,
             ),
-
-            // ===========================================================
-            // Score
-            // ===========================================================
             Text(
               '${assessment.score} / 12',
-              style: AppTextStyles.heading1,
+              style: AppTextStyles.heading1.copyWith(
+                fontSize: 30,
+              ),
             ),
-
             const SizedBox(
-              height: AppSpacing.small,
+              height: 3,
             ),
-
-            // ===========================================================
-            // Status
-            // ===========================================================
             Text(
               _scoreLabel(),
               style: AppTextStyles.title.copyWith(
-                color: scoreColor,
+                color: _scoreColor(),
+                fontSize: 17,
               ),
             ),
-
             const SizedBox(
-              height: AppSpacing.xSmall,
+              height: 4,
             ),
-
             Text(
-              _scoreMessage(),
-              style: AppTextStyles.caption,
+              _scoreMeaning(),
+              style: AppTextStyles.caption.copyWith(
+                fontSize: 12,
+              ),
             ),
-
             const SizedBox(
-              height: AppSpacing.small,
+              height: 8,
             ),
-
-            Text(
-              'Completed • $monthName ${assessment.year}',
-              style: AppTextStyles.caption,
+            Row(
+              children: [
+                const Icon(
+                  Icons.calendar_today_outlined,
+                  size: 15,
+                ),
+                const SizedBox(
+                  width: 6,
+                ),
+                Expanded(
+                  child: Text(
+                    '$monthName ${assessment.year}',
+                    style: AppTextStyles.caption,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: onViewTrends,
+                  icon: const Icon(
+                    Icons.show_chart,
+                    size: 16,
+                  ),
+                  label: const Text(
+                    'View Trends',
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -427,10 +541,69 @@ class _CompactAssessmentCard extends StatelessWidget {
 }
 
 // =====================================================================
-// Compact Quest Tile
+// Weekly Progress
 // =====================================================================
-class _CompactQuestTile extends StatelessWidget {
-  const _CompactQuestTile({
+class _WeeklyProgressCard extends StatelessWidget {
+  const _WeeklyProgressCard({
+    required this.completed,
+    required this.total,
+  });
+
+  final int completed;
+  final int total;
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = total == 0 ? 0.0 : completed / total;
+
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 10,
+        ),
+        child: Row(
+          children: [
+            Text(
+              'Weekly Progress',
+              style: AppTextStyles.title.copyWith(
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(
+              width: 12,
+            ),
+            Expanded(
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 7,
+                borderRadius: BorderRadius.circular(
+                  10,
+                ),
+              ),
+            ),
+            const SizedBox(
+              width: 12,
+            ),
+            Text(
+              '$completed / $total',
+              style: AppTextStyles.title.copyWith(
+                fontSize: 16,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// =====================================================================
+// Quest Row
+// =====================================================================
+class _QuestRow extends StatelessWidget {
+  const _QuestRow({
     required this.quest,
     required this.enabled,
     required this.onTap,
@@ -440,70 +613,185 @@ class _CompactQuestTile extends StatelessWidget {
   final bool enabled;
   final VoidCallback onTap;
 
+  String _categoryMeaning() {
+    final category = quest.category.toLowerCase();
+
+    if (category.contains('sleep')) {
+      return 'Improve sleep quality';
+    }
+
+    if (category.contains('gratitude')) {
+      return 'Build a positive mindset';
+    }
+
+    if (category.contains('stress')) {
+      return 'Reduce daily stress';
+    }
+
+    if (category.contains('mindful')) {
+      return 'Calm and reset';
+    }
+
+    if (category.contains('physical') || category.contains('movement')) {
+      return 'Boost energy and movement';
+    }
+
+    if (category.contains('confidence')) {
+      return 'Build self-confidence';
+    }
+
+    if (category.contains('coping')) {
+      return 'Handle challenges better';
+    }
+
+    if (category.contains('focus')) {
+      return 'Improve focus';
+    }
+
+    if (category.contains('mood')) {
+      return 'Support a better mood';
+    }
+
+    if (category.contains('happiness')) {
+      return 'Increase positive moments';
+    }
+
+    if (category.contains('purpose')) {
+      return 'Create more meaning';
+    }
+
+    if (category.contains('social')) {
+      return 'Strengthen connection';
+    }
+
+    if (category.contains('self-worth')) {
+      return 'Build self-appreciation';
+    }
+
+    return 'Support your wellbeing';
+  }
+
   @override
   Widget build(BuildContext context) {
-    final today = WeeklyQuestService.dateId(DateTime.now());
+    return InkWell(
+      onTap: enabled ? onTap : null,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          vertical: 6,
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    quest.title,
+                    style: AppTextStyles.title.copyWith(
+                      fontSize: 16,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(
+                    height: 2,
+                  ),
+                  Text(
+                    '${quest.category} • ${_categoryMeaning()}',
+                    style: AppTextStyles.caption.copyWith(
+                      fontSize: 12,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(
+                    height: 3,
+                  ),
+                  Text(
+                    quest.description,
+                    style: AppTextStyles.caption.copyWith(
+                      fontSize: 11,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(
+              width: 8,
+            ),
+            if (quest.isCompleted)
+              const Icon(
+                Icons.check_circle,
+                size: 18,
+              )
+            else
+              Text(
+                '+1',
+                style: AppTextStyles.caption.copyWith(
+                  fontSize: 12,
+                ),
+              ),
+            const SizedBox(
+              width: 3,
+            ),
+            Checkbox(
+              value: quest.isCompleted,
+              onChanged: enabled ? (_) => onTap() : null,
+              visualDensity: VisualDensity.compact,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
-    final completedToday = quest.completedDates.contains(today);
+// =====================================================================
+// Start Assessment
+// =====================================================================
+class _StartAssessmentCard extends StatelessWidget {
+  const _StartAssessmentCard({
+    required this.onTap,
+  });
 
-    final targetReached = quest.isCompleted;
+  final VoidCallback onTap;
 
+  @override
+  Widget build(BuildContext context) {
     return Card(
       margin: EdgeInsets.zero,
       child: InkWell(
-        onTap: enabled && (!targetReached || completedToday) ? onTap : null,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.medium,
-            vertical: AppSpacing.small,
+        onTap: onTap,
+        child: const Padding(
+          padding: EdgeInsets.all(
+            16,
           ),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Checkbox(
-                value: completedToday || targetReached,
-                visualDensity: VisualDensity.compact,
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                onChanged: enabled && (!targetReached || completedToday)
-                    ? (_) => onTap()
-                    : null,
+              Icon(
+                Icons.assignment_outlined,
               ),
-              const SizedBox(
-                width: AppSpacing.small,
+              SizedBox(
+                width: 10,
               ),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      quest.title,
+                      'Monthly Wellness Check',
                       style: AppTextStyles.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(
-                      height: 2,
+                    SizedBox(
+                      height: 4,
                     ),
                     Text(
-                      quest.description,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      'Tap to complete your monthly assessment.',
                       style: AppTextStyles.caption,
-                    ),
-                    const SizedBox(
-                      height: 2,
-                    ),
-                    Text(
-                      targetReached
-                          ? 'Completed this week'
-                          : completedToday
-                              ? 'Done today • '
-                                  '${quest.completedCount}/${quest.targetCount}'
-                              : '${quest.completedCount}/${quest.targetCount} this week',
-                      style: AppTextStyles.caption,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
@@ -517,88 +805,22 @@ class _CompactQuestTile extends StatelessWidget {
 }
 
 // =====================================================================
-// Incomplete Assessment
+// Empty Quest State
 // =====================================================================
-class _IncompleteAssessmentCard extends StatelessWidget {
-  const _IncompleteAssessmentCard({
+class _EmptyQuestState extends StatelessWidget {
+  const _EmptyQuestState({
     required this.onStartAssessment,
-    required this.onViewTrends,
   });
 
   final VoidCallback onStartAssessment;
-  final VoidCallback onViewTrends;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(
-          AppSpacing.medium,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Current Wellness Score',
-              style: AppTextStyles.heading2,
-            ),
-            const SizedBox(
-              height: AppSpacing.medium,
-            ),
-            const Text(
-              'Not completed this month',
-              style: AppTextStyles.title,
-            ),
-            const SizedBox(
-              height: AppSpacing.xSmall,
-            ),
-            const Text(
-              'Complete your monthly wellness check to view your score.',
-              style: AppTextStyles.caption,
-            ),
-            const SizedBox(
-              height: AppSpacing.medium,
-            ),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: onStartAssessment,
-                icon: const Icon(
-                  Icons.assignment_outlined,
-                ),
-                label: const Text(
-                  'Start Assessment',
-                ),
-              ),
-            ),
-            const SizedBox(
-              height: AppSpacing.small,
-            ),
-            Align(
-              alignment: Alignment.centerRight,
-              child: IntrinsicWidth(
-                child: OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size(0, 34),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  onPressed: onViewTrends,
-                  icon: const Icon(
-                    Icons.show_chart,
-                    size: 16,
-                  ),
-                  label: const Text(
-                    'Previous Trends',
-                  ),
-                ),
-              ),
-            ),
-          ],
+    return Center(
+      child: FilledButton(
+        onPressed: onStartAssessment,
+        child: const Text(
+          'Complete Wellness Check',
         ),
       ),
     );
@@ -618,26 +840,10 @@ class _ErrorState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(
-          AppSpacing.regular,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Unable to load your wellness information.',
-              style: AppTextStyles.body,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(
-              height: AppSpacing.medium,
-            ),
-            FilledButton(
-              onPressed: onRetry,
-              child: const Text('Try Again'),
-            ),
-          ],
+      child: FilledButton(
+        onPressed: onRetry,
+        child: const Text(
+          'Try Again',
         ),
       ),
     );

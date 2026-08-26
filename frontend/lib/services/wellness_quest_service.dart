@@ -4,8 +4,12 @@ class WellnessQuestService {
   const WellnessQuestService._();
 
   // ===========================================================
-  // Generate Weekly Quests
-  // Creates personalized weekly quests from GHQ-12 responses.
+  // Legacy Local Quest Generator
+  // ===========================================================
+  // This is kept only as a local fallback.
+  //
+  // The main SIAH wellness flow now generates personalized
+  // weekly quests using Gemini through the FastAPI backend.
   // ===========================================================
   static List<HabitQuest> generateWeeklyQuests(
     List<int> answers,
@@ -21,7 +25,6 @@ class WellnessQuestService {
           description:
               'Complete one focused task without checking your phone or multitasking.',
           category: 'focus',
-          targetCount: 3,
         ),
       );
     }
@@ -32,9 +35,9 @@ class WellnessQuestService {
         const HabitQuest(
           id: 'sleep',
           title: 'Screen-Free Bedtime',
-          description: 'Avoid screens for 30 minutes before bedtime.',
+          description:
+              'Avoid screens for 30 minutes before bedtime.',
           category: 'sleep',
-          targetCount: 3,
         ),
       );
     }
@@ -45,9 +48,9 @@ class WellnessQuestService {
         const HabitQuest(
           id: 'purpose',
           title: 'Meaningful Activity',
-          description: 'Spend at least 15 minutes doing something meaningful.',
+          description:
+              'Spend at least 15 minutes doing something meaningful.',
           category: 'purpose',
-          targetCount: 2,
         ),
       );
     }
@@ -58,9 +61,9 @@ class WellnessQuestService {
         const HabitQuest(
           id: 'decision',
           title: 'Make One Small Decision',
-          description: 'Complete one small decision you have been delaying.',
+          description:
+              'Complete one small decision you have been delaying.',
           category: 'confidence',
-          targetCount: 2,
         ),
       );
     }
@@ -74,7 +77,6 @@ class WellnessQuestService {
           description:
               'Spend five minutes practicing slow, controlled breathing.',
           category: 'stress',
-          targetCount: 3,
         ),
       );
     }
@@ -88,7 +90,6 @@ class WellnessQuestService {
           description:
               'Write one challenge and one small step you can take today.',
           category: 'coping',
-          targetCount: 2,
         ),
       );
     }
@@ -99,9 +100,9 @@ class WellnessQuestService {
         const HabitQuest(
           id: 'enjoyment',
           title: 'Do Something You Enjoy',
-          description: 'Spend at least 20 minutes doing something you enjoy.',
+          description:
+              'Spend at least 20 minutes doing something you enjoy.',
           category: 'enjoyment',
-          targetCount: 2,
         ),
       );
     }
@@ -112,9 +113,9 @@ class WellnessQuestService {
         const HabitQuest(
           id: 'face_problem',
           title: 'Finish One Avoided Task',
-          description: 'Complete one small task you have been avoiding.',
+          description:
+              'Complete one small task you have been avoiding.',
           category: 'coping',
-          targetCount: 2,
         ),
       );
     }
@@ -125,9 +126,9 @@ class WellnessQuestService {
         const HabitQuest(
           id: 'journal',
           title: 'Journal Check-In',
-          description: 'Spend five minutes writing about how you feel today.',
+          description:
+              'Spend five minutes writing about how you feel today.',
           category: 'mood',
-          targetCount: 3,
         ),
       );
     }
@@ -138,9 +139,9 @@ class WellnessQuestService {
         const HabitQuest(
           id: 'confidence',
           title: 'Recognize One Achievement',
-          description: 'Write down one thing you handled well today.',
+          description:
+              'Write down one thing you handled well today.',
           category: 'confidence',
-          targetCount: 3,
         ),
       );
     }
@@ -151,9 +152,9 @@ class WellnessQuestService {
         const HabitQuest(
           id: 'self_worth',
           title: 'Practice Self-Appreciation',
-          description: 'Write down one quality you appreciate about yourself.',
+          description:
+              'Write down one quality you appreciate about yourself.',
           category: 'self-worth',
-          targetCount: 2,
         ),
       );
     }
@@ -164,16 +165,15 @@ class WellnessQuestService {
         const HabitQuest(
           id: 'positive_activity',
           title: 'Plan Something Enjoyable',
-          description: 'Plan one enjoyable activity for this week.',
+          description:
+              'Plan one enjoyable activity for this week.',
           category: 'happiness',
-          targetCount: 1,
         ),
       );
     }
 
     // ===========================================================
-    // Default Weekly Plan
-    // Used when no significant area is flagged.
+    // Default Local Fallback
     // ===========================================================
     if (quests.isEmpty) {
       quests.addAll(
@@ -181,16 +181,16 @@ class WellnessQuestService {
           HabitQuest(
             id: 'breathing',
             title: 'Breathing Reset',
-            description: 'Spend five minutes practicing slow breathing.',
+            description:
+                'Spend five minutes practicing slow breathing.',
             category: 'stress',
-            targetCount: 2,
           ),
           HabitQuest(
             id: 'journal',
             title: 'Journal Check-In',
-            description: 'Write a short reflection about your day.',
+            description:
+                'Write a short reflection about your day.',
             category: 'mood',
-            targetCount: 2,
           ),
           HabitQuest(
             id: 'enjoyment',
@@ -198,7 +198,6 @@ class WellnessQuestService {
             description:
                 'Spend time doing something that supports your wellbeing.',
             category: 'enjoyment',
-            targetCount: 1,
           ),
         ],
       );

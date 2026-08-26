@@ -27,7 +27,10 @@ def generate_weekly_quests(
     response = client.models.generate_content(
     model="gemini-3.6-flash",
     contents=prompt,
-)           
+)         
+    print("\n========== GEMINI RESPONSE ==========")
+    print(response.text)
+    print("=====================================\n")  
 
     text = response.text.strip()
 

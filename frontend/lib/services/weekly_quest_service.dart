@@ -7,10 +7,6 @@ class WeeklyQuestService {
 
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // ===========================================================
-  // Weekly Quest Collection
-  // Returns the weekly quest collection for a specific user.
-  // ===========================================================
   static CollectionReference<Map<String, dynamic>> _weeklyQuests(
     String userId,
   ) {
@@ -20,13 +16,18 @@ class WeeklyQuestService {
         .collection('weekly_quests');
   }
 
-  // ===========================================================
-  // Week ID
-  // Creates a stable ID for the current week.
-  // Example: 2026-W34
-  // ===========================================================
+  static DocumentReference<Map<String, dynamic>> _userDocument(
+    String userId,
+  ) {
+    return _firestore.collection('users').doc(userId);
+  }
+
   static String weekId(DateTime date) {
-    final firstDayOfYear = DateTime(date.year, 1, 1);
+    final firstDayOfYear = DateTime(
+      date.year,
+      1,
+      1,
+    );
 
     final daysSinceStart = date.difference(firstDayOfYear).inDays;
 
@@ -37,22 +38,6 @@ class WeeklyQuestService {
     return '${date.year}-W$paddedWeek';
   }
 
-  // ===========================================================
-  // Date ID
-  // Creates a stable date value such as 2026-08-20.
-  // ===========================================================
-  static String dateId(DateTime date) {
-    final month = date.month.toString().padLeft(2, '0');
-
-    final day = date.day.toString().padLeft(2, '0');
-
-    return '${date.year}-$month-$day';
-  }
-
-  // ===========================================================
-  // Save Weekly Plan
-  // Stores the generated quest plan for the current week.
-  // ===========================================================
   static Future<void> saveWeeklyPlan({
     required String userId,
     required String sourceAssessmentId,
@@ -75,10 +60,6 @@ class WeeklyQuestService {
     );
   }
 
-  // ===========================================================
-  // Current Weekly Plan
-  // Loads the user's quest plan for the current week.
-  // ===========================================================
   static Future<List<HabitQuest>> getCurrentWeeklyPlan(
     String userId,
   ) async {
@@ -106,31 +87,35 @@ class WeeklyQuestService {
   }
 
   // ===========================================================
-  // Complete Quest Today
-  // Adds today's date once and prevents exceeding the
-  // weekly target.
+  // Complete Quest
+  // One completion per quest per week.
+  // Also gives the user +1 wellness point.
   // ===========================================================
-  static Future<void> completeQuestToday({
+  static Future<void> completeQuest({
     required String userId,
     required String questId,
   }) async {
     final weekDocumentId = weekId(DateTime.now());
 
-    final today = dateId(DateTime.now());
+    final weeklyReference = _weeklyQuests(userId).doc(weekDocumentId);
 
-    final reference = _weeklyQuests(userId).doc(weekDocumentId);
+    final userReference = _userDocument(userId);
 
     await _firestore.runTransaction(
       (transaction) async {
-        final snapshot = await transaction.get(reference);
+        final weeklySnapshot = await transaction.get(
+          weeklyReference,
+        );
 
-        final data = snapshot.data();
+        final data = weeklySnapshot.data();
 
-        if (!snapshot.exists || data == null) {
+        if (!weeklySnapshot.exists || data == null) {
           return;
         }
 
         final questData = data['quests'] as List<dynamic>? ?? [];
+
+        bool newlyCompleted = false;
 
         final updatedQuests = questData.map(
           (item) {
@@ -142,63 +127,72 @@ class WeeklyQuestService {
               return map;
             }
 
-            final targetCount = map['targetCount'] as int? ?? 1;
+            final alreadyCompleted = map['isCompleted'] as bool? ?? false;
 
-            final completedDates = List<String>.from(
-              map['completedDates'] as List<dynamic>? ?? [],
-            );
-
-            if (completedDates.contains(today)) {
-              return map;
+            if (!alreadyCompleted) {
+              map['isCompleted'] = true;
+              newlyCompleted = true;
             }
-
-            if (completedDates.length >= targetCount) {
-              return map;
-            }
-
-            completedDates.add(today);
-
-            map['completedDates'] = completedDates;
 
             return map;
           },
         ).toList();
 
+        if (!newlyCompleted) {
+          return;
+        }
+
         transaction.update(
-          reference,
+          weeklyReference,
           {
             'quests': updatedQuests,
           },
+        );
+
+        transaction.set(
+          userReference,
+          {
+            'wellnessPoints': FieldValue.increment(1),
+          },
+          SetOptions(merge: true),
         );
       },
     );
   }
 
   // ===========================================================
-  // Undo Quest Today
-  // Removes today's completion if the user wants to undo it.
+  // Undo Quest
+  // Marks the quest incomplete and removes the point.
   // ===========================================================
-  static Future<void> undoQuestToday({
+  static Future<void> undoQuest({
     required String userId,
     required String questId,
   }) async {
     final weekDocumentId = weekId(DateTime.now());
 
-    final today = dateId(DateTime.now());
+    final weeklyReference = _weeklyQuests(userId).doc(weekDocumentId);
 
-    final reference = _weeklyQuests(userId).doc(weekDocumentId);
+    final userReference = _userDocument(userId);
 
     await _firestore.runTransaction(
       (transaction) async {
-        final snapshot = await transaction.get(reference);
+        final weeklySnapshot = await transaction.get(
+          weeklyReference,
+        );
 
-        final data = snapshot.data();
+        final userSnapshot = await transaction.get(
+          userReference,
+        );
 
-        if (!snapshot.exists || data == null) {
+        final data = weeklySnapshot.data();
+
+        if (!weeklySnapshot.exists || data == null) {
           return;
         }
 
         final questData = data['quests'] as List<dynamic>? ?? [];
+
+        bool wasCompleted = false;
 
         final updatedQuests = questData.map(
           (item) {
@@ -210,24 +204,51 @@ class WeeklyQuestService {
               return map;
             }
 
-            final completedDates = List<String>.from(
-              map['completedDates'] as List<dynamic>? ?? [],
-            );
+            final completed = map['isCompleted'] as bool? ?? false;
 
-            completedDates.remove(today);
-
-            map['completedDates'] = completedDates;
+            if (completed) {
+              map['isCompleted'] = false;
+              wasCompleted = true;
+            }
 
             return map;
           },
         ).toList();
 
+        if (!wasCompleted) {
+          return;
+        }
+
         transaction.update(
-          reference,
+          weeklyReference,
           {
             'quests': updatedQuests,
           },
         );
+
+        final currentPoints =
+            userSnapshot.data()?['wellnessPoints'] as int? ?? 0;
+
+        transaction.set(
+          userReference,
+          {
+            'wellnessPoints': currentPoints > 0 ? currentPoints - 1 : 0,
+          },
+          SetOptions(merge: true),
+        );
+      },
+    );
+  }
+
+  // ===========================================================
+  // Total Wellness Points
+  // ===========================================================
+  static Stream<int> wellnessPointsStream(
+    String userId,
+  ) {
+    return _userDocument(userId).snapshots().map(
+      (snapshot) {
+        return snapshot.data()?['wellnessPoints'] as int? ?? 0;
       },
     );
   }

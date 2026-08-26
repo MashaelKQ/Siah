@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../data/wellness_questions.dart';
 import '../models/wellness_assessment.dart';
+import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../services/weekly_quest_service.dart';
-import '../services/wellness_quest_service.dart';
 import '../services/wellness_service.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_text_styles.dart';
@@ -19,27 +19,20 @@ class WellnessSurveyScreen extends StatefulWidget {
 }
 
 class _WellnessSurveyScreenState extends State<WellnessSurveyScreen> {
-  // ===========================================================
-  // Survey State
-  // Stores one selected response for each GHQ-12 question.
-  // ===========================================================
-  final List<int?> _answers = List<int?>.filled(wellnessQuestions.length, null);
+  final List<int?> _answers = List<int?>.filled(
+    wellnessQuestions.length,
+    null,
+  );
 
   int _currentQuestionIndex = 0;
   bool _isSaving = false;
 
-  // ===========================================================
-  // Select Answer
-  // ===========================================================
   void _selectAnswer(int value) {
     setState(() {
       _answers[_currentQuestionIndex] = value;
     });
   }
 
-  // ===========================================================
-  // Previous Question
-  // ===========================================================
   void _previousQuestion() {
     if (_currentQuestionIndex == 0) return;
 
@@ -48,9 +41,6 @@ class _WellnessSurveyScreenState extends State<WellnessSurveyScreen> {
     });
   }
 
-  // ===========================================================
-  // Next Question
-  // ===========================================================
   void _nextQuestion() {
     if (_answers[_currentQuestionIndex] == null) {
       SnackbarHelper.show(
@@ -70,11 +60,6 @@ class _WellnessSurveyScreenState extends State<WellnessSurveyScreen> {
     });
   }
 
-  // ===========================================================
-  // Calculate Score
-  // Uses GHQ binary scoring: 0, 0, 1, 1.
-  // Total score range: 0 to 12.
-  // ===========================================================
   int _calculateScore() {
     int total = 0;
 
@@ -89,11 +74,25 @@ class _WellnessSurveyScreenState extends State<WellnessSurveyScreen> {
     return total;
   }
 
-  // ===========================================================
-  // Submit Assessment
-  // Saves the monthly GHQ assessment and generates the
-  // user's personalized weekly wellness quest plan.
-  // ===========================================================
+  Map<String, dynamic> _buildGhQAnswers(
+    List<int> selectedAnswers,
+  ) {
+    final ghqAnswers = <String, dynamic>{};
+
+    for (int index = 0; index < wellnessQuestions.length; index++) {
+      final question = wellnessQuestions[index];
+      final selectedOption = selectedAnswers[index];
+
+      ghqAnswers['q${index + 1}'] = {
+        'question': question.text,
+        'answer': question.options[selectedOption],
+        'score': question.scores[selectedOption],
+      };
+    }
+
+    return ghqAnswers;
+  }
+
   Future<void> _submitAssessment() async {
     if (_isSaving) return;
 
@@ -124,34 +123,32 @@ class _WellnessSurveyScreenState extends State<WellnessSurveyScreen> {
 
       final selectedAnswers = _answers.cast<int>();
 
-      // ===========================================================
-      // Monthly Wellness Assessment
-      // ===========================================================
+      final score = _calculateScore();
+
       final assessment = WellnessAssessment(
-        id: WellnessService.monthlyAssessmentId(now),
+        id: WellnessService.monthlyAssessmentId(
+          now,
+        ),
         userId: user.uid,
         year: now.year,
         month: now.month,
-        score: _calculateScore(),
+        score: score,
         answers: selectedAnswers,
         completedAt: DateTime.now().toUtc(),
       );
 
-      await WellnessService.saveAssessment(assessment);
-
-      // ===========================================================
-      // Weekly Quest Generation
-      // Generates personalized quests based on the individual
-      // GHQ responses, not only the final score.
-      // ===========================================================
-      final weeklyQuests = WellnessQuestService.generateWeeklyQuests(
-        selectedAnswers,
+      await WellnessService.saveAssessment(
+        assessment,
       );
 
-      // ===========================================================
-      // Save Weekly Quest Plan
-      // Stores the plan once for the current week.
-      // ===========================================================
+      final ghqAnswers = _buildGhQAnswers(selectedAnswers);
+
+      final weeklyQuests = await ApiService.generateWeeklyQuests(
+        ghqScore: score,
+        ghqAnswers: ghqAnswers,
+        language: 'English',
+      );
+
       await WeeklyQuestService.saveWeeklyPlan(
         userId: user.uid,
         sourceAssessmentId: assessment.id,
@@ -160,13 +157,22 @@ class _WellnessSurveyScreenState extends State<WellnessSurveyScreen> {
 
       if (!mounted) return;
 
+      SnackbarHelper.show(
+        context,
+        'Assessment saved and weekly quests generated.',
+      );
+
       Navigator.pop(context);
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
 
       SnackbarHelper.show(
         context,
-        'Unable to save your assessment. Please try again.',
+        'Unable to save your assessment or generate quests. Please try again.',
+      );
+
+      debugPrint(
+        'Wellness assessment error: $error',
       );
     } finally {
       if (mounted) {
@@ -190,60 +196,56 @@ class _WellnessSurveyScreenState extends State<WellnessSurveyScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Monthly Wellness Check'),
+        title: const Text(
+          'Monthly Wellness Check',
+        ),
       ),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.regular),
+          padding: const EdgeInsets.all(
+            AppSpacing.regular,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ===========================================================
-              // Survey Progress
-              // ===========================================================
               Text(
-                'Question ${_currentQuestionIndex + 1} '
+                'Question '
+                '${_currentQuestionIndex + 1} '
                 'of ${wellnessQuestions.length}',
                 style: AppTextStyles.caption,
               ),
-
-              const SizedBox(height: AppSpacing.small),
-
+              const SizedBox(
+                height: AppSpacing.small,
+              ),
               LinearProgressIndicator(
                 value: progress,
               ),
-
-              const SizedBox(height: AppSpacing.large),
-
-              // ===========================================================
-              // Survey Context
-              // ===========================================================
+              const SizedBox(
+                height: AppSpacing.large,
+              ),
               if (_currentQuestionIndex == 0) ...[
                 const Text(
                   'Have you recently...',
                   style: AppTextStyles.caption,
                 ),
-                const SizedBox(height: AppSpacing.small),
+                const SizedBox(
+                  height: AppSpacing.small,
+                ),
               ],
-
-              // ===========================================================
-              // Current Question
-              // ===========================================================
               Text(
                 currentQuestion.text,
                 style: AppTextStyles.heading2,
               ),
-
-              const SizedBox(height: AppSpacing.large),
-
-              // ===========================================================
-              // Answer Options
-              // ===========================================================
+              const SizedBox(
+                height: AppSpacing.large,
+              ),
               Expanded(
                 child: RadioGroup<int>(
                   groupValue: currentAnswer,
                   onChanged: (value) {
-                    if (_isSaving || value == null) return;
+                    if (_isSaving || value == null) {
+                      return;
+                    }
 
                     _selectAnswer(value);
                   },
@@ -271,12 +273,9 @@ class _WellnessSurveyScreenState extends State<WellnessSurveyScreen> {
                   ),
                 ),
               ),
-
-              const SizedBox(height: AppSpacing.medium),
-
-              // ===========================================================
-              // Survey Navigation
-              // ===========================================================
+              const SizedBox(
+                height: AppSpacing.medium,
+              ),
               Row(
                 children: [
                   if (_currentQuestionIndex > 0) ...[
@@ -286,7 +285,9 @@ class _WellnessSurveyScreenState extends State<WellnessSurveyScreen> {
                         child: const Text('Previous'),
                       ),
                     ),
-                    const SizedBox(width: AppSpacing.small),
+                    const SizedBox(
+                      width: AppSpacing.small,
+                    ),
                   ],
                   Expanded(
                     child: FilledButton(

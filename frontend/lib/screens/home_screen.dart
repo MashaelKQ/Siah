@@ -2,12 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
 import '../theme/app_colors.dart';
-import '../theme/app_spacing.dart';
 import '../theme/app_text_styles.dart';
-import '../widgets/activity_card.dart';
-import '../widgets/ui_kit.dart';
 import '../widgets/mood_check_in.dart';
+import '../widgets/ui_kit.dart';
 import '../widgets/wellbeing_dashboard.dart';
+import 'live_coach_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({
@@ -16,18 +15,11 @@ class HomeScreen extends StatelessWidget {
     super.key,
   });
 
-  // ===========================================================
-  // Tab Switching
-  // The Journal lives in the navigation stack, not on a route,
-  // so opening it means switching tab rather than pushing a
-  // screen. MainNavigationScreen supplies this.
-  // ===========================================================
   final VoidCallback? onOpenJournal;
   final VoidCallback? onOpenWellness;
 
   // ===========================================================
-  // Time-Based Greeting
-  // Returns a greeting based on the current device time.
+  // Greeting
   // ===========================================================
   String _getGreeting() {
     final hour = DateTime.now().hour;
@@ -45,21 +37,23 @@ class HomeScreen extends StatelessWidget {
 
   // ===========================================================
   // Greeting Icon
-  // A small detail that makes the header feel like it belongs
-  // to this moment rather than any moment.
   // ===========================================================
   IconData _getGreetingIcon() {
     final hour = DateTime.now().hour;
 
-    if (hour < 12) return Icons.wb_twilight_outlined;
-    if (hour < 17) return Icons.light_mode_outlined;
+    if (hour < 12) {
+      return Icons.wb_twilight_outlined;
+    }
+
+    if (hour < 17) {
+      return Icons.light_mode_outlined;
+    }
 
     return Icons.dark_mode_outlined;
   }
 
   // ===========================================================
-  // Current Date
-  // Formats today's date without requiring an extra package.
+  // Date
   // ===========================================================
   String _getFormattedDate() {
     final today = DateTime.now();
@@ -97,10 +91,10 @@ class HomeScreen extends StatelessWidget {
 
   // ===========================================================
   // User Name
-  // Returns the authenticated user's display name.
   // ===========================================================
   String _getUserName() {
     final user = AuthService.currentUser;
+
     final displayName = user?.displayName?.trim();
 
     if (displayName != null && displayName.isNotEmpty) {
@@ -127,114 +121,271 @@ class HomeScreen extends StatelessWidget {
         bottom: false,
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(
-            AppSpacing.regular,
-            AppSpacing.small,
-            AppSpacing.regular,
-            AppSpacing.xxLarge,
+            16,
+            6,
+            16,
+            92,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ===========================================================
+              // =====================================================
               // Welcome Header
-              // The one gradient element on this screen. It anchors the
-              // page and gives the app its identity in the first second.
-              // ===========================================================
+              // =====================================================
               GradientSurface(
-                padding: const EdgeInsets.all(AppSpacing.large),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 16,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // ===============================================
+                    // Date Row
+                    // ===============================================
                     Row(
                       children: [
                         Icon(
                           _getGreetingIcon(),
-                          size: 18,
+                          size: 17,
                           color: Colors.white,
                         ),
-                        const SizedBox(width: AppSpacing.small),
-                        Text(
-                          currentDate,
-                          style: AppTextStyles.bodyOnBrand,
+                        const SizedBox(
+                          width: 8,
+                        ),
+                        Expanded(
+                          child: Text(
+                            currentDate,
+                            style: AppTextStyles.bodyOnBrand.copyWith(
+                              fontSize: 13,
+                              height: 1.2,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ],
                     ),
 
-                    const SizedBox(height: AppSpacing.regular),
-
-                    Text(
-                      '$greeting,',
-                      style: AppTextStyles.bodyOnBrand,
+                    const SizedBox(
+                      height: 14,
                     ),
 
-                    const SizedBox(height: AppSpacing.xSmall),
+                    // ===============================================
+                    // Greeting
+                    // ===============================================
+                    Text(
+                      '$greeting,',
+                      style: AppTextStyles.bodyOnBrand.copyWith(
+                        fontSize: 14,
+                        height: 1.2,
+                      ),
+                    ),
 
+                    const SizedBox(
+                      height: 3,
+                    ),
+
+                    // ===============================================
+                    // User Name
+                    // ===============================================
                     Text(
                       userName,
-                      style: AppTextStyles.displayOnBrand,
+                      style: AppTextStyles.displayOnBrand.copyWith(
+                        fontSize: 27,
+                        height: 1.05,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
               ),
 
-              const SizedBox(height: AppSpacing.large),
+              const SizedBox(
+                height: 10,
+              ),
 
-              // ===========================================================
-              // Wellbeing Dashboard
-              // The week so far, before the prompt to add to it.
-              // Seeing the week first gives the check-in a reason.
-              // ===========================================================
+              // =====================================================
+              // Weekly Wellbeing
+              // =====================================================
               const WellbeingDashboard(),
 
-              const SizedBox(height: AppSpacing.large),
+              const SizedBox(
+                height: 10,
+              ),
 
-              // ===========================================================
-              // Mood Check-In
-              // Records the user's emotional state in Cloud Firestore.
-              // The card keeps its own state so this screen does not
-              // need to become a StatefulWidget.
-              // ===========================================================
+              // =====================================================
+              // Mood
+              // =====================================================
               const MoodCheckIn(),
 
-              const SizedBox(height: AppSpacing.large),
-
-              // ===========================================================
-              // Today's Activities
-              // Displays the wellbeing activities available to the user.
-              // ===========================================================
-              const Text(
-                'Today’s Activities',
-                style: AppTextStyles.heading2,
+              const SizedBox(
+                height: 11,
               ),
 
-              const SizedBox(height: AppSpacing.medium),
+              // =====================================================
+              // Quick Access
+              // =====================================================
+              Text(
+                'Quick Access',
+                style: AppTextStyles.heading2.copyWith(
+                  fontSize: 19,
+                ),
+              ),
 
-              ActivityCard(
-                title: 'Breathing Session',
-                subtitle: 'Take a short guided breathing break.',
-                icon: Icons.air_outlined,
+              const SizedBox(
+                height: 8,
+              ),
+
+              // =====================================================
+              // Live Coach Sessions
+              // =====================================================
+              _CompactActivityCard(
+                title: 'Live Coach Sessions',
+                subtitle: 'Join guided sessions with a wellness coach.',
+                icon: Icons.support_agent_outlined,
                 color: AppColors.blue40,
-                onTap: () {},
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const LiveCoachScreen(),
+                    ),
+                  );
+                },
               ),
 
-              const SizedBox(height: AppSpacing.medium),
+              const SizedBox(
+                height: 7,
+              ),
 
-              ActivityCard(
+              // =====================================================
+              // Daily Journal
+              // =====================================================
+              _CompactActivityCard(
                 title: 'Daily Journal',
-                subtitle: 'Write down your thoughts and feelings.',
+                subtitle: 'Capture your thoughts and feelings.',
                 icon: Icons.edit_outlined,
                 color: AppColors.green40,
                 onTap: onOpenJournal ?? () {},
               ),
 
-              const SizedBox(height: AppSpacing.medium),
+              const SizedBox(
+                height: 7,
+              ),
 
-              ActivityCard(
+              // =====================================================
+              // Wellness Insight
+              // =====================================================
+              _CompactActivityCard(
                 title: 'Wellness Insight',
-                subtitle: 'View your latest wellbeing progress.',
+                subtitle: 'View your wellness progress.',
                 icon: Icons.show_chart,
                 color: AppColors.yellow40,
                 onTap: onOpenWellness ?? () {},
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// =====================================================================
+// Compact Activity Card
+// =====================================================================
+class _CompactActivityCard extends StatelessWidget {
+  const _CompactActivityCard({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(
+        18,
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(
+          18,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 9,
+          ),
+          child: Row(
+            children: [
+              // Icon box
+              Container(
+                height: 44,
+                width: 44,
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(
+                    12,
+                  ),
+                ),
+                child: Icon(
+                  icon,
+                  size: 21,
+                ),
+              ),
+
+              const SizedBox(
+                width: 11,
+              ),
+
+              // Text
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      title,
+                      style: AppTextStyles.title.copyWith(
+                        fontSize: 15,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(
+                      height: 2,
+                    ),
+                    Text(
+                      subtitle,
+                      style: AppTextStyles.caption.copyWith(
+                        fontSize: 11,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(
+                width: 6,
+              ),
+
+              const Icon(
+                Icons.chevron_right,
+                size: 20,
               ),
             ],
           ),

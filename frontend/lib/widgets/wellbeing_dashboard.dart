@@ -11,15 +11,6 @@ import '../theme/app_spacing.dart';
 import '../theme/app_text_styles.dart';
 import 'loading_indicator.dart';
 
-// ===========================================================
-// Wellbeing Dashboard
-//
-// A week at a time, with an arrow back through history.
-//
-// Everything is loaded once and sliced per week in memory.
-// Paging back is then instant, which matters: a spinner on
-// every arrow tap makes people stop tapping it.
-// ===========================================================
 class WellbeingDashboard extends StatefulWidget {
   const WellbeingDashboard({super.key});
 
@@ -28,7 +19,6 @@ class WellbeingDashboard extends StatefulWidget {
 }
 
 class _WellbeingDashboardState extends State<WellbeingDashboard> {
-  // How far back the arrows can reach.
   static const int _historyDays = 120;
 
   List<MoodEntry> _moods = const [];
@@ -47,20 +37,22 @@ class _WellbeingDashboardState extends State<WellbeingDashboard> {
   void initState() {
     super.initState();
 
-    _currentWeekStart = WellbeingInsights.weekStartFor(DateTime.now());
+    _currentWeekStart = WellbeingInsights.weekStartFor(
+      DateTime.now(),
+    );
+
     _viewedWeekStart = _currentWeekStart;
 
     _load();
   }
 
-  // ===========================================================
-  // Load
-  // ===========================================================
   Future<void> _load() async {
     final user = AuthService.currentUser;
 
     if (user == null) {
-      setState(() => _isLoading = false);
+      setState(() {
+        _isLoading = false;
+      });
       return;
     }
 
@@ -77,7 +69,10 @@ class _WellbeingDashboardState extends State<WellbeingDashboard> {
 
       final now = DateTime.now();
 
-      final alerts = WellbeingInsights.detectAlerts(moods: moods, now: now);
+      final alerts = WellbeingInsights.detectAlerts(
+        moods: moods,
+        now: now,
+      );
 
       if (!mounted) return;
 
@@ -85,14 +80,14 @@ class _WellbeingDashboardState extends State<WellbeingDashboard> {
         _moods = moods;
         _journals = journals;
         _alerts = alerts;
-        _streak = WellbeingInsights.currentStreak(moods, now);
+        _streak = WellbeingInsights.currentStreak(
+          moods,
+          now,
+        );
         _isLoading = false;
         _error = null;
       });
 
-      // The banner is already on screen by now. A notification
-      // only adds value when the app is closed, so it is fired
-      // separately and is often suppressed.
       for (final alert in alerts) {
         await NotificationService.maybeShowAlert(
           userId: user.uid,
@@ -109,22 +104,27 @@ class _WellbeingDashboardState extends State<WellbeingDashboard> {
     }
   }
 
-  // ===========================================================
-  // Week Navigation
-  // ===========================================================
   bool get _canGoBack {
     final earliest = _currentWeekStart.subtract(
-      const Duration(days: _historyDays),
+      const Duration(
+        days: _historyDays,
+      ),
     );
 
     return _viewedWeekStart.isAfter(earliest);
   }
 
-  bool get _canGoForward => _viewedWeekStart.isBefore(_currentWeekStart);
+  bool get _canGoForward {
+    return _viewedWeekStart.isBefore(_currentWeekStart);
+  }
 
   void _shiftWeek(int weeks) {
     setState(() {
-      _viewedWeekStart = _viewedWeekStart.add(Duration(days: weeks * 7));
+      _viewedWeekStart = _viewedWeekStart.add(
+        Duration(
+          days: weeks * 7,
+        ),
+      );
     });
   }
 
@@ -133,8 +133,12 @@ class _WellbeingDashboardState extends State<WellbeingDashboard> {
     if (_isLoading) {
       return const _Panel(
         child: Padding(
-          padding: EdgeInsets.symmetric(vertical: AppSpacing.xLarge),
-          child: Center(child: LoadingIndicator()),
+          padding: EdgeInsets.symmetric(
+            vertical: 20,
+          ),
+          child: Center(
+            child: LoadingIndicator(),
+          ),
         ),
       );
     }
@@ -146,14 +150,22 @@ class _WellbeingDashboardState extends State<WellbeingDashboard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(error, style: AppTextStyles.body),
-            const SizedBox(height: AppSpacing.medium),
+            Text(
+              error,
+              style: AppTextStyles.body,
+            ),
+            const SizedBox(height: 8),
             OutlinedButton(
               onPressed: () {
-                setState(() => _isLoading = true);
+                setState(() {
+                  _isLoading = true;
+                });
+
                 _load();
               },
-              child: const Text('Try Again'),
+              child: const Text(
+                'Try Again',
+              ),
             ),
           ],
         ),
@@ -172,94 +184,130 @@ class _WellbeingDashboardState extends State<WellbeingDashboard> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         for (final alert in _alerts) ...[
-          _AlertBanner(alert: alert),
-          const SizedBox(height: AppSpacing.medium),
+          _AlertBanner(
+            alert: alert,
+          ),
+          const SizedBox(
+            height: 8,
+          ),
         ],
-
         _Panel(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // ===============================================
+              // Week Header
+              // ===============================================
               _WeekHeader(
-                label: _weekLabel(week.weekStart),
+                label: _weekLabel(
+                  week.weekStart,
+                ),
                 canGoBack: _canGoBack,
                 canGoForward: _canGoForward,
                 onBack: () => _shiftWeek(-1),
                 onForward: () => _shiftWeek(1),
               ),
 
-              const SizedBox(height: AppSpacing.large),
-
-              SizedBox(
-                height: 108,
-                child: _WeekChart(days: week.days),
+              const SizedBox(
+                height: 10,
               ),
 
-              const SizedBox(height: AppSpacing.large),
+              // ===============================================
+              // Compact Weekly Chart
+              // ===============================================
+              SizedBox(
+                height: 68,
+                child: _WeekChart(
+                  days: week.days,
+                ),
+              ),
+
+              const SizedBox(
+                height: 8,
+              ),
 
               if (week.isEmpty)
                 Text(
                   isCurrentWeek
                       ? 'No check-ins yet this week.'
                       : 'No check-ins that week.',
-                  style: AppTextStyles.caption,
+                  style: AppTextStyles.caption.copyWith(
+                    fontSize: 11,
+                  ),
                 )
               else ...[
+                // =============================================
+                // Compact Summary
+                // =============================================
                 Text(
-                  'Averaging '
-                  '${valenceLabel(week.average!.round()).toLowerCase()} '
-                  'across ${week.daysLogged} '
-                  '${week.daysLogged == 1 ? 'day' : 'days'}.',
-                  style: AppTextStyles.caption,
+                  'Average: '
+                  '${valenceLabel(
+                    week.average!.round(),
+                  )} • '
+                  '${week.daysLogged} '
+                  '${week.daysLogged == 1 ? 'day' : 'days'}',
+                  style: AppTextStyles.caption.copyWith(
+                    fontSize: 11,
+                  ),
                 ),
 
-                const SizedBox(height: AppSpacing.large),
+                const SizedBox(
+                  height: 9,
+                ),
 
+                // =============================================
+                // Statistics
+                // =============================================
                 Row(
                   children: [
-                    _Stat(
+                    _CompactStat(
                       label: 'Check-ins',
                       value: '${week.checkIns}',
-                      caption: week.checkIns == 1 ? 'entry' : 'entries',
                     ),
-                    _Stat(
+                    const SizedBox(
+                      width: 8,
+                    ),
+                    _CompactStat(
                       label: 'Journal',
                       value: '${week.journalEntries}',
-                      caption: week.journalEntries == 1 ? 'entry' : 'entries',
                     ),
-
-                    // The streak describes now, not the week being
-                    // viewed, so it is hidden while looking back
-                    // rather than showing a number that belongs to
-                    // a different date.
-                    if (isCurrentWeek)
-                      _Stat(
+                    if (isCurrentWeek) ...[
+                      const SizedBox(
+                        width: 8,
+                      ),
+                      _CompactStat(
                         label: 'Streak',
                         value: '$_streak',
-                        caption: _streak == 1 ? 'day' : 'days',
-                      )
-                    else
-                      const Spacer(),
+                      ),
+                    ],
                   ],
                 ),
 
                 if (week.topEmotions.isNotEmpty) ...[
-                  const SizedBox(height: AppSpacing.large),
-                  const Text('Most felt', style: AppTextStyles.small),
-                  const SizedBox(height: AppSpacing.xSmall),
-                  Text(
-                    week.topEmotions.join(' · '),
-                    style: AppTextStyles.body,
+                  const SizedBox(
+                    height: 9,
                   ),
-                ],
-
-                if (week.topImpacts.isNotEmpty) ...[
-                  const SizedBox(height: AppSpacing.medium),
-                  const Text('Most influential', style: AppTextStyles.small),
-                  const SizedBox(height: AppSpacing.xSmall),
-                  Text(
-                    week.topImpacts.join(' · '),
-                    style: AppTextStyles.body,
+                  Row(
+                    children: [
+                      Text(
+                        'Most felt: ',
+                        style: AppTextStyles.small.copyWith(
+                          fontSize: 10,
+                        ),
+                      ),
+                      Expanded(
+                        child: Text(
+                          week.topEmotions.take(2).join(
+                                ' · ',
+                              ),
+                          style: AppTextStyles.caption.copyWith(
+                            fontSize: 11,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ],
@@ -270,22 +318,36 @@ class _WellbeingDashboardState extends State<WellbeingDashboard> {
     );
   }
 
-  // ===========================================================
-  // Week Label
-  // ===========================================================
-  String _weekLabel(DateTime start) {
-    if (start == _currentWeekStart) return 'This week';
+  String _weekLabel(
+    DateTime start,
+  ) {
+    if (start == _currentWeekStart) {
+      return 'This week';
+    }
 
-    final weeksBack = _currentWeekStart.difference(start).inDays ~/ 7;
+    final weeksBack = _currentWeekStart
+            .difference(
+              start,
+            )
+            .inDays ~/
+        7;
 
-    if (weeksBack == 1) return 'Last week';
+    if (weeksBack == 1) {
+      return 'Last week';
+    }
 
-    final end = start.add(const Duration(days: 6));
+    final end = start.add(
+      const Duration(
+        days: 6,
+      ),
+    );
 
     return '${_shortDate(start)} – ${_shortDate(end)}';
   }
 
-  String _shortDate(DateTime date) {
+  String _shortDate(
+    DateTime date,
+  ) {
     const months = [
       'Jan',
       'Feb',
@@ -305,12 +367,9 @@ class _WellbeingDashboardState extends State<WellbeingDashboard> {
   }
 }
 
-// ===========================================================
+// =====================================================================
 // Week Header
-// Title with the two arrows. A disabled arrow stays in place
-// rather than disappearing, so the controls do not shift
-// position as you page through.
-// ===========================================================
+// =====================================================================
 class _WeekHeader extends StatelessWidget {
   const _WeekHeader({
     required this.label,
@@ -331,14 +390,21 @@ class _WeekHeader extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: Text(label, style: AppTextStyles.heading2),
+          child: Text(
+            label,
+            style: AppTextStyles.heading2.copyWith(
+              fontSize: 19,
+            ),
+          ),
         ),
         _ArrowButton(
           icon: Icons.chevron_left,
           tooltip: 'Previous week',
           onTap: canGoBack ? onBack : null,
         ),
-        const SizedBox(width: AppSpacing.xSmall),
+        const SizedBox(
+          width: 5,
+        ),
         _ArrowButton(
           icon: Icons.chevron_right,
           tooltip: 'Next week',
@@ -349,6 +415,9 @@ class _WeekHeader extends StatelessWidget {
   }
 }
 
+// =====================================================================
+// Arrow
+// =====================================================================
 class _ArrowButton extends StatelessWidget {
   const _ArrowButton({
     required this.icon,
@@ -372,21 +441,25 @@ class _ArrowButton extends StatelessWidget {
           onTap: onTap,
           customBorder: const CircleBorder(),
           child: Container(
-            height: 36,
-            width: 36,
+            height: 32,
+            width: 32,
             alignment: Alignment.center,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: isEnabled
                   ? AppColors.surfaceMuted
-                  : AppColors.surfaceMuted.withValues(alpha: 0.4),
+                  : AppColors.surfaceMuted.withValues(
+                      alpha: 0.4,
+                    ),
             ),
             child: Icon(
               icon,
-              size: 20,
+              size: 18,
               color: isEnabled
                   ? AppColors.textPrimary
-                  : AppColors.textSecondary.withValues(alpha: 0.4),
+                  : AppColors.textSecondary.withValues(
+                      alpha: 0.4,
+                    ),
             ),
           ),
         ),
@@ -395,21 +468,25 @@ class _ArrowButton extends StatelessWidget {
   }
 }
 
-// ===========================================================
+// =====================================================================
 // Week Chart
-// Seven bars with weekday initials.
-//
-// A day with no check-in is a short grey stub rather than a
-// zero-height or neutral bar. Drawing a missing day as neutral
-// would invent data the person never entered.
-// ===========================================================
+// =====================================================================
 class _WeekChart extends StatelessWidget {
-  const _WeekChart({required this.days});
+  const _WeekChart({
+    required this.days,
+  });
 
   final List<DayPoint> days;
 
-  // Indexed by DateTime.weekday, which starts at Monday = 1.
-  static const List<String> _initials = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+  static const List<String> _initials = [
+    'M',
+    'T',
+    'W',
+    'T',
+    'F',
+    'S',
+    'S',
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -428,6 +505,9 @@ class _WeekChart extends StatelessWidget {
   }
 }
 
+// =====================================================================
+// Chart Bar
+// =====================================================================
 class _Bar extends StatelessWidget {
   const _Bar({
     required this.point,
@@ -441,7 +521,6 @@ class _Bar extends StatelessWidget {
   Widget build(BuildContext context) {
     final average = point.average;
 
-    // -2..2 mapped onto a 0..1 height.
     final fraction = average == null ? null : (average + 2) / 4;
 
     final today = DateTime.now();
@@ -454,28 +533,36 @@ class _Bar extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
         SizedBox(
-          height: 78,
+          height: 45,
           child: Align(
             alignment: Alignment.bottomCenter,
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 220),
+              duration: const Duration(
+                milliseconds: 220,
+              ),
               curve: Curves.easeOut,
-              width: 20,
-              height: fraction == null ? 6 : 10 + (66 * fraction),
+              width: 18,
+              height: fraction == null ? 5 : 7 + (34 * fraction),
               decoration: BoxDecoration(
                 color: average == null
                     ? AppColors.border
-                    : valenceColor(average.round()),
-                borderRadius: BorderRadius.circular(AppRadius.pill),
+                    : valenceColor(
+                        average.round(),
+                      ),
+                borderRadius: BorderRadius.circular(
+                  AppRadius.pill,
+                ),
               ),
             ),
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(
+          height: 5,
+        ),
         Text(
           initial,
           style: AppTextStyles.small.copyWith(
-            fontSize: 11,
+            fontSize: 10,
             letterSpacing: 0,
             fontWeight: isToday ? FontWeight.w700 : FontWeight.w500,
             color: isToday ? AppColors.textPrimary : AppColors.textSecondary,
@@ -486,15 +573,66 @@ class _Bar extends StatelessWidget {
   }
 }
 
-// ===========================================================
+// =====================================================================
+// Compact Stat
+// =====================================================================
+class _CompactStat extends StatelessWidget {
+  const _CompactStat({
+    required this.label,
+    required this.value,
+  });
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 8,
+          vertical: 7,
+        ),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceMuted,
+          borderRadius: BorderRadius.circular(
+            10,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: AppTextStyles.small.copyWith(
+                fontSize: 9,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(
+              height: 1,
+            ),
+            Text(
+              value,
+              style: AppTextStyles.title.copyWith(
+                fontSize: 16,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// =====================================================================
 // Alert Banner
-//
-// Deliberately not red and not an error icon. This is an
-// observation, and dressing it as a warning makes a hard week
-// feel like a diagnosis.
-// ===========================================================
+// =====================================================================
 class _AlertBanner extends StatelessWidget {
-  const _AlertBanner({required this.alert});
+  const _AlertBanner({
+    required this.alert,
+  });
 
   final WellbeingAlert alert;
 
@@ -502,21 +640,34 @@ class _AlertBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.regular),
+      padding: const EdgeInsets.all(
+        12,
+      ),
       decoration: BoxDecoration(
         color: AppColors.yellow40,
-        borderRadius: BorderRadius.circular(AppRadius.medium),
+        borderRadius: BorderRadius.circular(
+          AppRadius.medium,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(alert.title, style: AppTextStyles.title),
-          const SizedBox(height: AppSpacing.xSmall),
-          Text(alert.message, style: AppTextStyles.body),
-          const SizedBox(height: AppSpacing.small),
+          Text(
+            alert.title,
+            style: AppTextStyles.title,
+          ),
+          const SizedBox(
+            height: 4,
+          ),
+          Text(
+            alert.message,
+            style: AppTextStyles.body,
+          ),
+          const SizedBox(
+            height: 6,
+          ),
           const Text(
-            'If this has been going on for a while, talking to someone you '
-            'trust or a professional is worth more than any app.',
+            'If this has been going on for a while, talking to someone you trust or a professional is worth more than any app.',
             style: AppTextStyles.caption,
           ),
         ],
@@ -525,35 +676,13 @@ class _AlertBanner extends StatelessWidget {
   }
 }
 
-class _Stat extends StatelessWidget {
-  const _Stat({
-    required this.label,
-    required this.value,
-    required this.caption,
-  });
-
-  final String label;
-  final String value;
-  final String caption;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: AppTextStyles.small),
-          const SizedBox(height: 2),
-          Text(value, style: AppTextStyles.heading2),
-          Text(caption, style: AppTextStyles.caption),
-        ],
-      ),
-    );
-  }
-}
-
+// =====================================================================
+// Panel
+// =====================================================================
 class _Panel extends StatelessWidget {
-  const _Panel({required this.child});
+  const _Panel({
+    required this.child,
+  });
 
   final Widget child;
 
@@ -561,10 +690,14 @@ class _Panel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.regular),
+      padding: const EdgeInsets.all(
+        14,
+      ),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.medium),
+        borderRadius: BorderRadius.circular(
+          AppRadius.medium,
+        ),
         boxShadow: AppShadows.card,
       ),
       child: child,

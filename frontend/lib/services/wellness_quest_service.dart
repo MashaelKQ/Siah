@@ -1,208 +1,349 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../models/habit_quest.dart';
 
-class WellnessQuestService {
-  const WellnessQuestService._();
+class WeeklyQuestService {
+  WeeklyQuestService._();
+
+  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // ===========================================================
-  // Legacy Local Quest Generator
+  // Weekly Quest Collection
   // ===========================================================
-  // This is kept only as a local fallback.
-  //
-  // The main SIAH wellness flow now generates personalized
-  // weekly quests using Gemini through the FastAPI backend.
-  // ===========================================================
-  static List<HabitQuest> generateWeeklyQuests(
-    List<int> answers,
+  static CollectionReference<Map<String, dynamic>> _weeklyQuests(
+    String userId,
   ) {
-    final quests = <HabitQuest>[];
+    return _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('weekly_quests');
+  }
 
-    // Concentration
-    if (answers.isNotEmpty && answers[0] >= 2) {
-      quests.add(
-        const HabitQuest(
-          id: 'focus',
-          title: 'Focus Session',
-          description:
-              'Complete one focused task without checking your phone or multitasking.',
-          category: 'focus',
-        ),
-      );
+  // ===========================================================
+  // User Document
+  // ===========================================================
+  static DocumentReference<Map<String, dynamic>> _userDocument(
+    String userId,
+  ) {
+    return _firestore.collection('users').doc(userId);
+  }
+
+  // ===========================================================
+  // Week ID
+  // Example: 2026-W34
+  // ===========================================================
+  static String weekId(DateTime date) {
+    final firstDayOfYear = DateTime(
+      date.year,
+      1,
+      1,
+    );
+
+    final daysSinceStart = date.difference(firstDayOfYear).inDays;
+
+    final weekNumber = ((daysSinceStart + firstDayOfYear.weekday - 1) ~/ 7) + 1;
+
+    final paddedWeek = weekNumber.toString().padLeft(
+          2,
+          '0',
+        );
+
+    return '${date.year}-W$paddedWeek';
+  }
+
+  // ===========================================================
+  // Save Weekly Quest Plan
+  // ===========================================================
+  static Future<void> saveWeeklyPlan({
+    required String userId,
+    required String sourceAssessmentId,
+    required List<HabitQuest> quests,
+  }) async {
+    final now = DateTime.now();
+    final id = weekId(now);
+
+    await _weeklyQuests(userId).doc(id).set(
+      {
+        'weekId': id,
+        'sourceAssessmentId': sourceAssessmentId,
+        'createdAt': now.toUtc().toIso8601String(),
+        'quests': quests
+            .map(
+              (quest) => quest.toMap(),
+            )
+            .toList(),
+      },
+    );
+  }
+
+  // ===========================================================
+  // Get Current Weekly Plan
+  // ===========================================================
+  static Future<List<HabitQuest>> getCurrentWeeklyPlan(
+    String userId,
+  ) async {
+    final id = weekId(
+      DateTime.now(),
+    );
+
+    final document = await _weeklyQuests(userId).doc(id).get();
+
+    final data = document.data();
+
+    if (!document.exists || data == null) {
+      return [];
     }
 
-    // Sleep
-    if (answers.length > 1 && answers[1] >= 2) {
-      quests.add(
-        const HabitQuest(
-          id: 'sleep',
-          title: 'Screen-Free Bedtime',
-          description:
-              'Avoid screens for 30 minutes before bedtime.',
-          category: 'sleep',
-        ),
-      );
-    }
+    final questData = data['quests'] as List<dynamic>? ?? [];
 
-    // Purpose
-    if (answers.length > 2 && answers[2] >= 2) {
-      quests.add(
-        const HabitQuest(
-          id: 'purpose',
-          title: 'Meaningful Activity',
-          description:
-              'Spend at least 15 minutes doing something meaningful.',
-          category: 'purpose',
-        ),
-      );
-    }
-
-    // Decision Making
-    if (answers.length > 3 && answers[3] >= 2) {
-      quests.add(
-        const HabitQuest(
-          id: 'decision',
-          title: 'Make One Small Decision',
-          description:
-              'Complete one small decision you have been delaying.',
-          category: 'confidence',
-        ),
-      );
-    }
-
-    // Stress
-    if (answers.length > 4 && answers[4] >= 2) {
-      quests.add(
-        const HabitQuest(
-          id: 'breathing',
-          title: 'Breathing Reset',
-          description:
-              'Spend five minutes practicing slow, controlled breathing.',
-          category: 'stress',
-        ),
-      );
-    }
-
-    // Coping
-    if (answers.length > 5 && answers[5] >= 2) {
-      quests.add(
-        const HabitQuest(
-          id: 'problem',
-          title: 'Break Down One Challenge',
-          description:
-              'Write one challenge and one small step you can take today.',
-          category: 'coping',
-        ),
-      );
-    }
-
-    // Enjoyment
-    if (answers.length > 6 && answers[6] >= 2) {
-      quests.add(
-        const HabitQuest(
-          id: 'enjoyment',
-          title: 'Do Something You Enjoy',
-          description:
-              'Spend at least 20 minutes doing something you enjoy.',
-          category: 'enjoyment',
-        ),
-      );
-    }
-
-    // Facing Problems
-    if (answers.length > 7 && answers[7] >= 2) {
-      quests.add(
-        const HabitQuest(
-          id: 'face_problem',
-          title: 'Finish One Avoided Task',
-          description:
-              'Complete one small task you have been avoiding.',
-          category: 'coping',
-        ),
-      );
-    }
-
-    // Mood
-    if (answers.length > 8 && answers[8] >= 2) {
-      quests.add(
-        const HabitQuest(
-          id: 'journal',
-          title: 'Journal Check-In',
-          description:
-              'Spend five minutes writing about how you feel today.',
-          category: 'mood',
-        ),
-      );
-    }
-
-    // Confidence
-    if (answers.length > 9 && answers[9] >= 2) {
-      quests.add(
-        const HabitQuest(
-          id: 'confidence',
-          title: 'Recognize One Achievement',
-          description:
-              'Write down one thing you handled well today.',
-          category: 'confidence',
-        ),
-      );
-    }
-
-    // Self-Worth
-    if (answers.length > 10 && answers[10] >= 2) {
-      quests.add(
-        const HabitQuest(
-          id: 'self_worth',
-          title: 'Practice Self-Appreciation',
-          description:
-              'Write down one quality you appreciate about yourself.',
-          category: 'self-worth',
-        ),
-      );
-    }
-
-    // Happiness
-    if (answers.length > 11 && answers[11] >= 2) {
-      quests.add(
-        const HabitQuest(
-          id: 'positive_activity',
-          title: 'Plan Something Enjoyable',
-          description:
-              'Plan one enjoyable activity for this week.',
-          category: 'happiness',
-        ),
-      );
-    }
-
-    // ===========================================================
-    // Default Local Fallback
-    // ===========================================================
-    if (quests.isEmpty) {
-      quests.addAll(
-        const [
-          HabitQuest(
-            id: 'breathing',
-            title: 'Breathing Reset',
-            description:
-                'Spend five minutes practicing slow breathing.',
-            category: 'stress',
+    return questData
+        .map(
+          (item) => HabitQuest.fromMap(
+            Map<String, dynamic>.from(
+              item as Map,
+            ),
           ),
-          HabitQuest(
-            id: 'journal',
-            title: 'Journal Check-In',
-            description:
-                'Write a short reflection about your day.',
-            category: 'mood',
-          ),
-          HabitQuest(
-            id: 'enjoyment',
-            title: 'Do Something You Enjoy',
-            description:
-                'Spend time doing something that supports your wellbeing.',
-            category: 'enjoyment',
-          ),
-        ],
-      );
-    }
+        )
+        .toList();
+  }
 
-    return quests.take(4).toList();
+  // ===========================================================
+  // Complete Quest
+  // Each quest can only be completed once per week.
+  // Awards +1 Wellness Point.
+  // ===========================================================
+  static Future<void> completeQuest({
+    required String userId,
+    required String questId,
+  }) async {
+    final weeklyReference = _weeklyQuests(userId).doc(
+      weekId(DateTime.now()),
+    );
+
+    final userReference = _userDocument(userId);
+
+    await _firestore.runTransaction(
+      (transaction) async {
+        final weeklySnapshot = await transaction.get(
+          weeklyReference,
+        );
+
+        final data = weeklySnapshot.data();
+
+        if (!weeklySnapshot.exists || data == null) {
+          return;
+        }
+
+        final questData = data['quests'] as List<dynamic>? ?? [];
+
+        bool newlyCompleted = false;
+
+        final updatedQuests = questData.map(
+          (item) {
+            final map = Map<String, dynamic>.from(
+              item as Map,
+            );
+
+            if (map['id'] != questId) {
+              return map;
+            }
+
+            final alreadyCompleted = map['isCompleted'] as bool? ?? false;
+
+            if (!alreadyCompleted) {
+              map['isCompleted'] = true;
+              newlyCompleted = true;
+            }
+
+            return map;
+          },
+        ).toList();
+
+        if (!newlyCompleted) {
+          return;
+        }
+
+        transaction.update(
+          weeklyReference,
+          {
+            'quests': updatedQuests,
+          },
+        );
+
+        transaction.set(
+          userReference,
+          {
+            'wellnessPoints': FieldValue.increment(1),
+          },
+          SetOptions(
+            merge: true,
+          ),
+        );
+      },
+    );
+  }
+
+  // ===========================================================
+  // Undo Quest
+  // Marks the quest incomplete and removes 1 point.
+  // ===========================================================
+  static Future<void> undoQuest({
+    required String userId,
+    required String questId,
+  }) async {
+    final weeklyReference = _weeklyQuests(userId).doc(
+      weekId(DateTime.now()),
+    );
+
+    final userReference = _userDocument(userId);
+
+    await _firestore.runTransaction(
+      (transaction) async {
+        final weeklySnapshot = await transaction.get(
+          weeklyReference,
+        );
+
+        final userSnapshot = await transaction.get(
+          userReference,
+        );
+
+        final data = weeklySnapshot.data();
+
+        if (!weeklySnapshot.exists || data == null) {
+          return;
+        }
+
+        final questData = data['quests'] as List<dynamic>? ?? [];
+
+        bool wasCompleted = false;
+
+        final updatedQuests = questData.map(
+          (item) {
+            final map = Map<String, dynamic>.from(
+              item as Map,
+            );
+
+            if (map['id'] != questId) {
+              return map;
+            }
+
+            final completed = map['isCompleted'] as bool? ?? false;
+
+            if (completed) {
+              map['isCompleted'] = false;
+              wasCompleted = true;
+            }
+
+            return map;
+          },
+        ).toList();
+
+        if (!wasCompleted) {
+          return;
+        }
+
+        transaction.update(
+          weeklyReference,
+          {
+            'quests': updatedQuests,
+          },
+        );
+
+        final currentPoints =
+            userSnapshot.data()?['wellnessPoints'] as int? ?? 0;
+
+        transaction.set(
+          userReference,
+          {
+            'wellnessPoints': currentPoints > 0 ? currentPoints - 1 : 0,
+          },
+          SetOptions(
+            merge: true,
+          ),
+        );
+      },
+    );
+  }
+
+  // ===========================================================
+  // Wellness Points Stream
+  // Keeps the points indicator updated live.
+  // ===========================================================
+  static Stream<int> wellnessPointsStream(
+    String userId,
+  ) {
+    return _userDocument(userId).snapshots().map(
+      (snapshot) {
+        return snapshot.data()?['wellnessPoints'] as int? ?? 0;
+      },
+    );
+  }
+
+  // ===========================================================
+  // Redeem Reward
+  //
+  // Checks the user's current Wellness Points.
+  // If the user has enough:
+  // - deducts the required points
+  // - stores a redemption record in Firestore
+  //
+  // Returns:
+  // true  = redemption successful
+  // false = not enough points
+  // ===========================================================
+  static Future<bool> redeemReward({
+    required String userId,
+    required String rewardId,
+    required String rewardTitle,
+    required int pointsRequired,
+  }) async {
+    final userReference = _userDocument(userId);
+
+    final redemptionReference = userReference
+        .collection(
+          'reward_redemptions',
+        )
+        .doc();
+
+    return _firestore.runTransaction<bool>(
+      (transaction) async {
+        final userSnapshot = await transaction.get(
+          userReference,
+        );
+
+        final currentPoints =
+            userSnapshot.data()?['wellnessPoints'] as int? ?? 0;
+
+        // Not enough points
+        if (currentPoints < pointsRequired) {
+          return false;
+        }
+
+        // Deduct Wellness Points
+        transaction.set(
+          userReference,
+          {
+            'wellnessPoints': currentPoints - pointsRequired,
+          },
+          SetOptions(
+            merge: true,
+          ),
+        );
+
+        // Save reward redemption history
+        transaction.set(
+          redemptionReference,
+          {
+            'rewardId': rewardId,
+            'rewardTitle': rewardTitle,
+            'pointsUsed': pointsRequired,
+            'redeemedAt': FieldValue.serverTimestamp(),
+            'status': 'redeemed',
+          },
+        );
+
+        return true;
+      },
+    );
   }
 }

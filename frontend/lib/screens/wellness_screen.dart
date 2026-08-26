@@ -8,6 +8,7 @@ import '../services/wellness_service.dart';
 import '../theme/app_text_styles.dart';
 import '../utils/snackbar_helper.dart';
 import '../widgets/loading_indicator.dart';
+import 'rewards_screen.dart';
 import 'wellness_survey_screen.dart';
 import 'wellness_trend_screen.dart';
 
@@ -87,6 +88,18 @@ class _WellnessScreenState extends State<WellnessScreen> {
       context,
       MaterialPageRoute(
         builder: (context) => const WellnessTrendScreen(),
+      ),
+    );
+  }
+
+  // ===========================================================
+  // Open Rewards
+  // ===========================================================
+  void _openRewards() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const RewardsScreen(),
       ),
     );
   }
@@ -215,36 +228,49 @@ class _WellnessScreenState extends State<WellnessScreen> {
                     right: 16,
                   ),
                   child: Center(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 11,
-                        vertical: 6,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(
+                        20,
                       ),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(
-                          20,
+                      onTap: _openRewards,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 11,
+                          vertical: 6,
                         ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.stars_rounded,
-                            size: 17,
+                        decoration: BoxDecoration(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(
+                            20,
                           ),
-                          const SizedBox(
-                            width: 5,
-                          ),
-                          Text(
-                            '$points pts',
-                            style: AppTextStyles.title.copyWith(
-                              fontSize: 14,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.stars_rounded,
+                              size: 17,
                             ),
-                          ),
-                        ],
+                            const SizedBox(
+                              width: 5,
+                            ),
+                            Text(
+                              '$points pts',
+                              style: AppTextStyles.title.copyWith(
+                                fontSize: 14,
+                              ),
+                            ),
+                            const SizedBox(
+                              width: 3,
+                            ),
+                            const Icon(
+                              Icons.chevron_right,
+                              size: 16,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -318,9 +344,9 @@ class _WellnessScreenState extends State<WellnessScreen> {
                   ),
                   child: Column(
                     children: [
-                      // ==============================================
+                      // =============================================
                       // Monthly Wellness Check
-                      // ==============================================
+                      // =============================================
                       if (assessment != null)
                         _MonthlyCheckCard(
                           assessment: assessment,
@@ -338,9 +364,9 @@ class _WellnessScreenState extends State<WellnessScreen> {
                         height: 10,
                       ),
 
-                      // ==============================================
+                      // =============================================
                       // Weekly Progress
-                      // ==============================================
+                      // =============================================
                       _WeeklyProgressCard(
                         completed: completed,
                         total: quests.length,
@@ -350,9 +376,9 @@ class _WellnessScreenState extends State<WellnessScreen> {
                         height: 10,
                       ),
 
-                      // ==============================================
+                      // =============================================
                       // Weekly Quests
-                      // ==============================================
+                      // =============================================
                       Expanded(
                         child: quests.isEmpty
                             ? _EmptyQuestState(
@@ -473,37 +499,56 @@ class _MonthlyCheckCard extends StatelessWidget {
               'Monthly Wellness Check',
               style: AppTextStyles.title,
             ),
+
             const SizedBox(
-              height: 8,
+              height: 10,
             ),
-            Text(
-              '${assessment.score} / 12',
-              style: AppTextStyles.heading1.copyWith(
-                fontSize: 30,
-              ),
+
+            // =====================================================
+            // Score + Meaning
+            // =====================================================
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text(
+                  '${assessment.score} / 12',
+                  style: AppTextStyles.heading1.copyWith(
+                    fontSize: 28,
+                  ),
+                ),
+                const SizedBox(
+                  width: 14,
+                ),
+                Expanded(
+                  child: Text(
+                    _scoreLabel(),
+                    style: AppTextStyles.title.copyWith(
+                      color: _scoreColor(),
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+              ],
             ),
+
             const SizedBox(
-              height: 3,
+              height: 5,
             ),
-            Text(
-              _scoreLabel(),
-              style: AppTextStyles.title.copyWith(
-                color: _scoreColor(),
-                fontSize: 17,
-              ),
-            ),
-            const SizedBox(
-              height: 4,
-            ),
+
             Text(
               _scoreMeaning(),
               style: AppTextStyles.caption.copyWith(
-                fontSize: 12,
+                fontSize: 11,
               ),
             ),
+
             const SizedBox(
-              height: 8,
+              height: 10,
             ),
+
+            // =====================================================
+            // Date + Trends
+            // =====================================================
             Row(
               children: [
                 const Icon(
@@ -613,6 +658,9 @@ class _QuestRow extends StatelessWidget {
   final bool enabled;
   final VoidCallback onTap;
 
+  // ===========================================================
+  // Category Meaning
+  // ===========================================================
   String _categoryMeaning() {
     final category = quest.category.toLowerCase();
 
@@ -633,15 +681,15 @@ class _QuestRow extends StatelessWidget {
     }
 
     if (category.contains('physical') || category.contains('movement')) {
-      return 'Boost energy and movement';
+      return 'Boost energy';
     }
 
     if (category.contains('confidence')) {
-      return 'Build self-confidence';
+      return 'Build confidence';
     }
 
     if (category.contains('coping')) {
-      return 'Handle challenges better';
+      return 'Handle challenges';
     }
 
     if (category.contains('focus')) {
@@ -649,7 +697,7 @@ class _QuestRow extends StatelessWidget {
     }
 
     if (category.contains('mood')) {
-      return 'Support a better mood';
+      return 'Support your mood';
     }
 
     if (category.contains('happiness')) {
@@ -668,20 +716,96 @@ class _QuestRow extends StatelessWidget {
       return 'Build self-appreciation';
     }
 
-    return 'Support your wellbeing';
+    return 'Support wellbeing';
+  }
+
+  // ===========================================================
+  // Show Full Quest Details
+  // ===========================================================
+  void _showQuestDetails(
+    BuildContext context,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              20,
+              4,
+              20,
+              24,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  quest.title,
+                  style: AppTextStyles.heading2,
+                ),
+                const SizedBox(
+                  height: 6,
+                ),
+                Text(
+                  '${quest.category} • ${_categoryMeaning()}',
+                  style: AppTextStyles.caption,
+                ),
+                const SizedBox(
+                  height: 14,
+                ),
+                Text(
+                  quest.description,
+                  style: AppTextStyles.body,
+                ),
+                const SizedBox(
+                  height: 18,
+                ),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: enabled
+                        ? () {
+                            Navigator.pop(
+                              context,
+                            );
+
+                            onTap();
+                          }
+                        : null,
+                    child: Text(
+                      quest.isCompleted
+                          ? 'Mark as Incomplete'
+                          : 'Complete Quest • +1 Point',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: enabled ? onTap : null,
+      onTap: enabled
+          ? () => _showQuestDetails(
+                context,
+              )
+          : null,
       child: Padding(
         padding: const EdgeInsets.symmetric(
-          vertical: 6,
+          vertical: 9,
         ),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
+            // =====================================================
+            // Quest Information
+            // =====================================================
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -689,18 +813,7 @@ class _QuestRow extends StatelessWidget {
                   Text(
                     quest.title,
                     style: AppTextStyles.title.copyWith(
-                      fontSize: 16,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(
-                    height: 2,
-                  ),
-                  Text(
-                    '${quest.category} • ${_categoryMeaning()}',
-                    style: AppTextStyles.caption.copyWith(
-                      fontSize: 12,
+                      fontSize: 15,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -709,7 +822,7 @@ class _QuestRow extends StatelessWidget {
                     height: 3,
                   ),
                   Text(
-                    quest.description,
+                    '${quest.category} • ${_categoryMeaning()}',
                     style: AppTextStyles.caption.copyWith(
                       fontSize: 11,
                     ),
@@ -719,24 +832,29 @@ class _QuestRow extends StatelessWidget {
                 ],
               ),
             ),
+
             const SizedBox(
               width: 8,
             ),
-            if (quest.isCompleted)
-              const Icon(
-                Icons.check_circle,
-                size: 18,
-              )
-            else
+
+            // =====================================================
+            // Point Indicator
+            // =====================================================
+            if (!quest.isCompleted)
               Text(
                 '+1',
                 style: AppTextStyles.caption.copyWith(
-                  fontSize: 12,
+                  fontSize: 11,
                 ),
               ),
+
             const SizedBox(
-              width: 3,
+              width: 4,
             ),
+
+            // =====================================================
+            // Completion Checkbox
+            // =====================================================
             Checkbox(
               value: quest.isCompleted,
               onChanged: enabled ? (_) => onTap() : null,
@@ -751,7 +869,7 @@ class _QuestRow extends StatelessWidget {
 }
 
 // =====================================================================
-// Start Assessment
+// Start Assessment Card
 // =====================================================================
 class _StartAssessmentCard extends StatelessWidget {
   const _StartAssessmentCard({
